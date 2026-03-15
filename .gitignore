@@ -89,15 +89,16 @@ tags
 *.sublime-project
 *.sublime-workspace
 
-# ─── ECU binary & definition files (user data) ────────────────────────────────
+# ─── ECU binary & definition files (user data — never commit real ECU files) ──
 *.bin
 *.ori
 *.mod
 *.hex
 *.s19
 *.srec
-sample_data/*.bin
-sample_data/*.xdf
+# Allow synthetic sample files used for testing
+!sample_data/test_ecu.bin
+!sample_data/test_ecu.xdf
 
 # ─── Runtime / uploads ────────────────────────────────────────────────────────
 uploads/
