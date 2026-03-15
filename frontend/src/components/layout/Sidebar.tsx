@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Search, Table2, SlidersHorizontal, GitCompare, Download, ChevronDown } from 'lucide-react'
+import { Search, Table2, SlidersHorizontal, GitCompare, ChevronDown } from 'lucide-react'
 import type { TableMeta } from '@/types'
+import { useT } from '@/i18n'
 
 interface SidebarProps {
   tables: TableMeta[]
@@ -16,17 +17,18 @@ export function Sidebar({
 }: SidebarProps) {
   const [search, setSearch] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const t = useT()
 
-  const filtered = tables.filter(t =>
-    t.title.toLowerCase().includes(search.toLowerCase()) ||
-    t.category.toLowerCase().includes(search.toLowerCase())
+  const filtered = tables.filter(tbl =>
+    tbl.title.toLowerCase().includes(search.toLowerCase()) ||
+    tbl.category.toLowerCase().includes(search.toLowerCase())
   )
 
   // Group by category
-  const grouped = filtered.reduce<Record<string, TableMeta[]>>((acc, t) => {
-    const cat = t.category || 'Uncategorized'
+  const grouped = filtered.reduce<Record<string, TableMeta[]>>((acc, tbl) => {
+    const cat = tbl.category || t.uncategorized
     if (!acc[cat]) acc[cat] = []
-    acc[cat].push(t)
+    acc[cat].push(tbl)
     return acc
   }, {})
 
@@ -39,7 +41,7 @@ export function Sidebar({
   }
 
   const allCategories = Object.keys(grouped)
-  const displayGroups = allCategories.length === 1 && allCategories[0] === 'Uncategorized'
+  const displayGroups = allCategories.length === 1 && allCategories[0] === t.uncategorized
     ? null
     : grouped
 
@@ -48,9 +50,9 @@ export function Sidebar({
       {/* Nav icons */}
       <nav className="flex border-b border-bg-border">
         {([
-          { id: 'tables',    icon: Table2,          label: 'Tables'    },
+          { id: 'tables',    icon: Table2,           label: 'Tables'    },
           { id: 'constants', icon: SlidersHorizontal, label: 'Constants' },
-          { id: 'diff',      icon: GitCompare,       label: 'Diff'      },
+          { id: 'diff',      icon: GitCompare,        label: 'Diff'      },
         ] as const).map(({ id, icon: Icon, label }) => (
           <button
             key={id}
@@ -78,7 +80,7 @@ export function Sidebar({
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               className="input w-full pl-8 py-1.5 text-sm"
-              placeholder="Search tables…"
+              placeholder={t.searchTables}
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -106,26 +108,26 @@ export function Sidebar({
                       className={`transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
                     />
                   </button>
-                  {isOpen && items.map(t => (
-                    <TableItem key={t.id} table={t} selected={selectedId === t.id} onSelect={onSelect} />
+                  {isOpen && items.map(tbl => (
+                    <TableItem key={tbl.id} table={tbl} selected={selectedId === tbl.id} onSelect={onSelect} />
                   ))}
                 </div>
               )
             })
           ) : (
-            filtered.map(t => (
-              <TableItem key={t.id} table={t} selected={selectedId === t.id} onSelect={onSelect} />
+            filtered.map(tbl => (
+              <TableItem key={tbl.id} table={tbl} selected={selectedId === tbl.id} onSelect={onSelect} />
             ))
           )}
           {filtered.length === 0 && (
-            <p className="text-text-muted text-sm text-center py-8">No tables found</p>
+            <p className="text-text-muted text-sm text-center py-8">{t.noTablesFound}</p>
           )}
         </div>
       )}
 
       {/* Bottom info */}
       <div className="p-3 border-t border-bg-border text-xs text-text-muted font-mono">
-        {tables.length} tables
+        {t.tablesCount(tables.length)}
       </div>
     </aside>
   )

@@ -1,8 +1,9 @@
 import { useRef, useMemo } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { TableData } from '@/types'
+import { useT } from '@/i18n'
 
 // Map a 0..1 value to a heatmap color (cold blue → green → amber → red)
 function heatmapColor(t: number): THREE.Color {
@@ -175,6 +176,7 @@ interface Surface3DProps {
 }
 
 export function Surface3D({ table }: Surface3DProps) {
+  const t = useT()
   const flat = table.z_values.flat()
   const zMin = Math.min(...flat)
   const zMax = Math.max(...flat)
@@ -235,7 +237,7 @@ export function Surface3D({ table }: Surface3DProps) {
       </div>
 
       <div className="absolute top-3 right-3 text-[10px] font-mono text-text-muted/50 pointer-events-none">
-        drag to rotate · scroll to zoom
+        {t.surfaceHint}
       </div>
     </div>
   )

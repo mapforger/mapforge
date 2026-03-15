@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { Zap, Upload, FileCode, FileArchive, AlertCircle } from 'lucide-react'
 import { createSession } from '@/lib/api'
 import type { Session } from '@/types'
+import { useT } from '@/i18n'
 
 interface UploadPageProps {
   onSession: (session: Session) => void
@@ -13,6 +14,7 @@ export function UploadPage({ onSession }: UploadPageProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragTarget, setDragTarget] = useState<'bin' | 'xdf' | null>(null)
+  const t = useT()
 
   const handleDrop = useCallback((type: 'bin' | 'xdf', e: React.DragEvent) => {
     e.preventDefault()
@@ -31,7 +33,7 @@ export function UploadPage({ onSession }: UploadPageProps) {
       const session = await createSession(binFile, xdfFile)
       onSession(session)
     } catch (err: any) {
-      setError(err?.response?.data?.detail ?? 'Failed to load files. Check your XDF and BIN.')
+      setError(err?.response?.data?.detail ?? t.uploadError)
     } finally {
       setLoading(false)
     }
@@ -47,17 +49,18 @@ export function UploadPage({ onSession }: UploadPageProps) {
 
       <div className="w-full max-w-xl">
         <p className="text-text-secondary text-center mb-8 text-sm">
-          Load an ECU binary and its XDF definition to start editing
+          {t.uploadSubtitle}
         </p>
 
         <div className="flex flex-col gap-4">
           {/* BIN drop zone */}
           <DropZone
-            label="ECU Binary"
-            hint=".bin · .ori · .mod · .hex"
+            label={t.binLabel}
+            hint={t.binHint}
             icon={FileArchive}
             file={binFile}
             isDragging={dragTarget === 'bin'}
+            clickOrDrop={t.clickOrDrop}
             onDragEnter={() => setDragTarget('bin')}
             onDragLeave={() => setDragTarget(null)}
             onDrop={e => handleDrop('bin', e)}
@@ -67,11 +70,12 @@ export function UploadPage({ onSession }: UploadPageProps) {
 
           {/* XDF drop zone */}
           <DropZone
-            label="XDF Definition"
-            hint=".xdf — TunerPro RT format"
+            label={t.xdfLabel}
+            hint={t.xdfHint}
             icon={FileCode}
             file={xdfFile}
             isDragging={dragTarget === 'xdf'}
+            clickOrDrop={t.clickOrDrop}
             onDragEnter={() => setDragTarget('xdf')}
             onDragLeave={() => setDragTarget(null)}
             onDrop={e => handleDrop('xdf', e)}
@@ -97,18 +101,18 @@ export function UploadPage({ onSession }: UploadPageProps) {
           {loading ? (
             <>
               <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-              Loading…
+              {t.loading}
             </>
           ) : (
             <>
               <Upload size={16} />
-              Open in Editor
+              {t.openInEditor}
             </>
           )}
         </button>
 
         <p className="text-text-muted text-xs text-center mt-6">
-          Files are processed locally — nothing is uploaded to any server.
+          {t.localProcessing}
         </p>
       </div>
     </div>
@@ -118,6 +122,7 @@ export function UploadPage({ onSession }: UploadPageProps) {
 interface DropZoneProps {
   label: string
   hint: string
+  clickOrDrop: string
   icon: React.FC<{ size?: number; className?: string }>
   file: File | null
   isDragging: boolean
@@ -129,7 +134,7 @@ interface DropZoneProps {
 }
 
 function DropZone({
-  label, hint, icon: Icon, file, isDragging,
+  label, hint, clickOrDrop, icon: Icon, file, isDragging,
   onDragEnter, onDragLeave, onDrop, onChange, accept
 }: DropZoneProps) {
   return (
@@ -163,7 +168,7 @@ function DropZone({
       </div>
 
       {!file && (
-        <span className="text-text-muted text-xs hidden group-hover:block">Click or drop</span>
+        <span className="text-text-muted text-xs hidden group-hover:block">{clickOrDrop}</span>
       )}
     </label>
   )

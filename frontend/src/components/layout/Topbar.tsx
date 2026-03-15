@@ -3,6 +3,7 @@ import type { Session, ChecksumStatus, ChecksumBlockResult } from '@/types'
 import { exportBin } from '@/lib/api'
 import { useState } from 'react'
 import { useToast, apiError } from '@/components/ui/Toast'
+import { useT, useLang } from '@/i18n'
 
 interface TopbarProps {
   session: Session
@@ -17,6 +18,8 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
   const [checksumOpen, setChecksumOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const { toast } = useToast()
+  const { lang, setLang } = useLang()
+  const t = useT()
   const sizeKB = (session.bin_size / 1024).toFixed(1)
   const stem = session.bin_name.replace(/\.[^.]+$/, '')
   const suggestedName = `${stem}_modified.bin`
@@ -41,6 +44,7 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
           const writable = await handle.createWritable()
           await writable.write(blob)
           await writable.close()
+          toast({ message: t.exported(suggestedName), variant: 'success' })
           return
         } catch (e: any) {
           if (e?.name === 'AbortError') return
@@ -54,9 +58,9 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
       a.download = suggestedName
       a.click()
       URL.revokeObjectURL(a.href)
-      toast({ message: `${suggestedName} exporté`, variant: 'success' })
+      toast({ message: t.exported(suggestedName), variant: 'success' })
     } catch (err) {
-      toast({ message: `Erreur export : ${apiError(err)}`, variant: 'error' })
+      toast({ message: t.exportError(apiError(err)), variant: 'error' })
     } finally {
       setExporting(false)
     }
@@ -92,14 +96,24 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Language toggle */}
+        <div className="flex items-center gap-0.5 bg-bg-elevated rounded border border-bg-border p-0.5">
+          {(['en', 'fr'] as const).map(l => (
+            <button key={l} onClick={() => setLang(l)}
+              className={`px-2 py-0.5 text-xs rounded font-medium uppercase transition-colors
+                ${lang === l ? 'bg-accent text-white' : 'text-text-muted hover:text-text-secondary'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+
         {/* Checksum badge */}
         {checksumStatus && (
           <ChecksumBadge
             status={checksumStatus}
             open={checksumOpen}
             onToggle={() => setChecksumOpen(o => !o)}
-            onFix={onFixChecksums}
-            isFixing={!!isFixing}
+            t={t}
           />
         )}
 
@@ -108,13 +122,18 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
           {exporting
             ? <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
             : <Download size={14} />}
-          Export .bin
+          {t.exportBin}
         </button>
         <button onClick={onClose} className="btn-ghost flex items-center gap-1.5 text-sm py-1.5">
           <Trash2 size={14} />
-          Close
+          {t.close}
         </button>
       </div>
+
+      {/* Click-outside overlay for checksum panel */}
+      {checksumOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setChecksumOpen(false)} />
+      )}
 
       {/* Checksum detail panel */}
       {checksumOpen && checksumStatus && (
@@ -123,6 +142,7 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
           onClose={() => setChecksumOpen(false)}
           onFix={onFixChecksums}
           isFixing={!!isFixing}
+          t={t}
         />
       )}
 
@@ -136,10 +156,10 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
               <ShieldAlert size={28} className="text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-text-primary font-semibold text-base">
-                  {invalidChecksums} checksum{invalidChecksums > 1 ? 's' : ''} invalide{invalidChecksums > 1 ? 's' : ''}
+                  {t.exportInvalidTitle(invalidChecksums)}
                 </h3>
                 <p className="text-text-muted text-sm mt-1">
-                  Exporter un fichier avec des checksums incorrects empêchera probablement l'ECU de démarrer.
+                  {t.exportInvalidDesc}
                 </p>
               </div>
             </div>
@@ -149,17 +169,17 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
                 <button onClick={handleFixAndExport} disabled={exporting}
                   className="btn-primary flex items-center justify-center gap-2 py-2.5 disabled:opacity-50">
                   <Wrench size={15} />
-                  Corriger les checksums puis exporter
+                  {t.fixAndExport}
                 </button>
               )}
               <button onClick={() => { setExportConfirm(false); doExport() }} disabled={exporting}
                 className="flex items-center justify-center gap-2 py-2.5 px-4 rounded text-sm
                   text-amber-400 border border-amber-400/30 hover:bg-amber-400/10 transition-colors">
-                Exporter quand même (risqué)
+                {t.exportAnyway}
               </button>
               <button onClick={() => setExportConfirm(false)}
                 className="btn-ghost py-2.5 text-sm">
-                Annuler
+                {t.cancel}
               </button>
             </div>
           </div>
@@ -176,12 +196,11 @@ function checksumSummary(results: ChecksumBlockResult[]) {
   return { invalid, total: results.length }
 }
 
-function ChecksumBadge({ status, open, onToggle, onFix, isFixing }: {
+function ChecksumBadge({ status, open, onToggle, t }: {
   status: ChecksumStatus
   open: boolean
   onToggle: () => void
-  onFix?: () => void
-  isFixing: boolean
+  t: ReturnType<typeof useT>
 }) {
   if (!status.has_blocks) {
     return (
@@ -195,13 +214,12 @@ function ChecksumBadge({ status, open, onToggle, onFix, isFixing }: {
     )
   }
 
-  const orig = checksumSummary(status.original)
   const curr = checksumSummary(status.current)
   const allOk = curr.invalid === 0
 
   return (
     <button onClick={onToggle}
-      title={allOk ? 'Checksums valides' : `${curr.invalid} checksum(s) invalide(s)`}
+      title={allOk ? t.checksumBadgeValid : t.checksumBadgeInvalid(curr.invalid, curr.total)}
       className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-sm font-medium transition-colors
         ${open
           ? 'bg-bg-elevated'
@@ -220,11 +238,12 @@ function ChecksumBadge({ status, open, onToggle, onFix, isFixing }: {
 
 // ── Checksum detail panel ────────────────────────────────────────────────────
 
-function ChecksumPanel({ status, onClose, onFix, isFixing }: {
+function ChecksumPanel({ status, onClose, onFix, isFixing, t }: {
   status: ChecksumStatus
   onClose: () => void
   onFix?: () => void
   isFixing: boolean
+  t: ReturnType<typeof useT>
 }) {
   const currentInvalid = status.current.filter(r => !r.valid).length
   const origInvalid = status.original.filter(r => !r.valid).length
@@ -233,7 +252,7 @@ function ChecksumPanel({ status, onClose, onFix, isFixing }: {
     <div className="absolute top-full right-0 mt-1 w-96 bg-bg-surface border border-bg-border rounded-lg shadow-xl z-50 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-bg-border">
-        <span className="font-semibold text-text-primary text-sm">Checksums</span>
+        <span className="font-semibold text-text-primary text-sm">{t.checksumTitle}</span>
         <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
           <X size={14} />
         </button>
@@ -242,26 +261,26 @@ function ChecksumPanel({ status, onClose, onFix, isFixing }: {
       {!status.has_blocks ? (
         <div className="px-4 py-6 text-center">
           <Shield size={32} className="text-text-muted/30 mx-auto mb-2" />
-          <p className="text-text-secondary text-sm font-medium">Aucun bloc défini</p>
-          <p className="text-text-muted text-xs mt-1">
-            Ce XDF ne contient pas de définitions XDFCHECKSUM.
-          </p>
+          <p className="text-text-secondary text-sm font-medium">{t.noBlocksDefined}</p>
+          <p className="text-text-muted text-xs mt-1">{t.noBlocksDesc}</p>
         </div>
       ) : (
         <div className="divide-y divide-bg-border">
           {/* Original status */}
           <StatusSection
-            label="Fichier original"
+            label={t.originalFile}
             results={status.original}
             invalid={origInvalid}
             muted
+            t={t}
           />
 
           {/* Current status */}
           <StatusSection
-            label="État actuel"
+            label={t.currentState}
             results={status.current}
             invalid={currentInvalid}
+            t={t}
           />
 
           {/* Fix button */}
@@ -274,13 +293,13 @@ function ChecksumPanel({ status, onClose, onFix, isFixing }: {
                 {isFixing
                   ? <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
                   : <Wrench size={14} />}
-                {isFixing ? 'Correction…' : `Corriger ${currentInvalid} checksum${currentInvalid > 1 ? 's' : ''}`}
+                {isFixing ? t.fixing : t.fixN(currentInvalid)}
               </button>
             </div>
           )}
           {currentInvalid === 0 && (
             <div className="px-4 py-3 text-center text-xs text-emerald-400 font-medium">
-              ✓ Tous les checksums sont valides
+              {t.allValid}
             </div>
           )}
         </div>
@@ -289,19 +308,20 @@ function ChecksumPanel({ status, onClose, onFix, isFixing }: {
   )
 }
 
-function StatusSection({ label, results, invalid, muted }: {
+function StatusSection({ label, results, invalid, muted, t }: {
   label: string
   results: ChecksumBlockResult[]
   invalid: number
   muted?: boolean
+  t: ReturnType<typeof useT>
 }) {
   return (
     <div className={`px-4 py-3 space-y-2 ${muted ? 'opacity-70' : ''}`}>
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">{label}</span>
         {invalid === 0
-          ? <span className="text-xs text-emerald-400 font-medium">✓ Valide</span>
-          : <span className="text-xs text-amber-400 font-medium">⚠ {invalid} invalide{invalid > 1 ? 's' : ''}</span>}
+          ? <span className="text-xs text-emerald-400 font-medium">{t.checksumValid}</span>
+          : <span className="text-xs text-amber-400 font-medium">{t.checksumInvalid(invalid)}</span>}
       </div>
       {results.map((r, i) => (
         <div key={i} className="flex items-start gap-2 text-xs font-mono">
@@ -310,18 +330,18 @@ function StatusSection({ label, results, invalid, muted }: {
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-text-primary truncate">{r.label}</p>
-            <p className="text-text-muted text-[10px] font-mono">
+            <p className="text-text-muted text-[10px]">
               {r.algorithm}
+              {r.store_address && <span className="text-text-muted/60 ml-1">@ {r.store_address}</span>}
               {r.error && <span className="text-error ml-1">{r.error}</span>}
               {!r.error && !r.valid && r.stored && r.computed && (
                 <span className="ml-1">
-                  stocké <span className="text-amber-400">{r.stored}</span>
-                  {' → '} attendu <span className="text-emerald-400">{r.computed}</span>
+                  · {t.stored} <span className="text-amber-400">{r.stored}</span>
+                  {' → '}{t.expected} <span className="text-emerald-400">{r.computed}</span>
                 </span>
               )}
             </p>
           </div>
-          <span className="text-text-muted/60 flex-shrink-0">{r.store_address}</span>
         </div>
       ))}
     </div>

@@ -5,8 +5,9 @@ import { Topbar } from '@/components/layout/Topbar'
 import { TableEditor } from '@/components/ui/TableEditor'
 import { listTables, getTable, writeTable, getDiff, listConstants, writeConstant, deleteSession, getChecksumStatus, fixChecksums } from '@/lib/api'
 import { useToast, apiError } from '@/components/ui/Toast'
+import { useT } from '@/i18n'
 import type { Session, DiffEntry } from '@/types'
-import { FileQuestion, SlidersHorizontal, GitCompare, Search, ArrowUpDown, Check, X } from 'lucide-react'
+import { FileQuestion, SlidersHorizontal, GitCompare, Search, Check, X } from 'lucide-react'
 
 interface EditorPageProps {
   session: Session
@@ -19,6 +20,7 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
   const [highlightCell, setHighlightCell]       = useState<[number, number] | null>(null)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const t = useT()
 
   const { data: tables = [] } = useQuery({
     queryKey: ['tables', session.file_id],
@@ -54,16 +56,16 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
       queryClient.invalidateQueries({ queryKey: ['diff', session.file_id] })
       queryClient.invalidateQueries({ queryKey: ['checksum', session.file_id] })
     },
-    onError: (err) => toast({ message: `Erreur sauvegarde : ${apiError(err)}`, variant: 'error' }),
+    onError: (err) => toast({ message: t.saveError(apiError(err)), variant: 'error' }),
   })
 
   const fixMutation = useMutation({
     mutationFn: () => fixChecksums(session.file_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checksum', session.file_id] })
-      toast({ message: 'Checksums corrigés', variant: 'success' })
+      toast({ message: t.checksumFixed, variant: 'success' })
     },
-    onError: (err) => toast({ message: `Erreur checksums : ${apiError(err)}`, variant: 'error' }),
+    onError: (err) => toast({ message: t.checksumError(apiError(err)), variant: 'error' }),
   })
 
   const handleClose = async () => {
@@ -115,11 +117,11 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
           {activeView === 'tables' && (
             <>
               {!selectedTableId && (
-                <EmptyState icon={FileQuestion} title="Select a table" description="Choose a table from the sidebar to start editing" />
+                <EmptyState icon={FileQuestion} title={t.selectTableTitle} description={t.selectTableDesc} />
               )}
               {selectedTableId && tableLoading && (
                 <div className="h-full flex items-center justify-center">
-                  <span className="text-text-muted text-sm animate-pulse">Loading…</span>
+                  <span className="text-text-muted text-sm animate-pulse">{t.loading}</span>
                 </div>
               )}
               {selectedTableId && tableData && !tableLoading && (
@@ -170,12 +172,13 @@ function EmptyState({ icon: Icon, title, description }: {
 function ConstantsView({ constants, fileId, onChanged }: {
   constants: any[]; fileId: string; onChanged: () => void
 }) {
+  const t = useT()
   if (!constants.length) return (
-    <EmptyState icon={SlidersHorizontal} title="No constants" description="This XDF has no constants defined" />
+    <EmptyState icon={SlidersHorizontal} title={t.noConstantsTitle} description={t.noConstantsDesc} />
   )
   return (
     <div className="flex flex-col h-full gap-3">
-      <h2 className="text-text-primary font-semibold flex-shrink-0">Constants</h2>
+      <h2 className="text-text-primary font-semibold flex-shrink-0">{t.constantsHeading}</h2>
       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
         {constants.map(c => (
           <ConstantRow key={c.id} constant={c} fileId={fileId} onChanged={onChanged} />
@@ -190,6 +193,7 @@ function ConstantRow({ constant: c, fileId, onChanged }: { constant: any; fileId
   const [raw, setRaw]         = useState('')
   const [saving, setSaving]   = useState(false)
   const { toast } = useToast()
+  const t = useT()
 
   const startEdit = () => { setRaw(String(parseFloat(c.value.toPrecision(8)))); setEditing(true) }
   const cancel    = () => setEditing(false)
@@ -201,9 +205,9 @@ function ConstantRow({ constant: c, fileId, onChanged }: { constant: any; fileId
       await writeConstant(fileId, c.id, val)
       onChanged()
       setEditing(false)
-      toast({ message: `${c.title} mis à jour`, variant: 'success' })
+      toast({ message: t.constantUpdated(c.title), variant: 'success' })
     } catch (err) {
-      toast({ message: `Erreur : ${apiError(err)}`, variant: 'error' })
+      toast({ message: t.constantError(apiError(err)), variant: 'error' })
     } finally {
       setSaving(false)
     }
@@ -247,6 +251,7 @@ type SortKey = 'order' | 'table' | 'delta'
 function DiffView({ diff, onNavigate }: { diff: DiffEntry[]; onNavigate: (d: DiffEntry) => void }) {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('order')
+  const t = useT()
 
   const processed = useMemo(() => {
     let items = diff.filter((d: DiffEntry) =>
@@ -263,7 +268,7 @@ function DiffView({ diff, onNavigate }: { diff: DiffEntry[]; onNavigate: (d: Dif
   }, [diff, search, sortKey])
 
   if (!diff.length) return (
-    <EmptyState icon={GitCompare} title="No changes" description="Modify table values to see the diff here" />
+    <EmptyState icon={GitCompare} title={t.noChangesTitle} description={t.noChangesDesc} />
   )
 
   return (
@@ -271,17 +276,17 @@ function DiffView({ diff, onNavigate }: { diff: DiffEntry[]; onNavigate: (d: Dif
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <span className="text-text-primary font-semibold text-sm">
-          {diff.length} modification{diff.length !== 1 ? 's' : ''}
+          {t.nChanges(diff.length)}
         </span>
         <div className="relative ml-auto">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input className="input pl-8 py-1 text-sm w-48" placeholder="Filtrer…"
+          <input className="input pl-8 py-1 text-sm w-48" placeholder={t.filterPlaceholder}
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         {/* Sort */}
         <div className="flex items-center gap-1 bg-bg-elevated rounded border border-bg-border p-0.5">
-          {([['order', 'Time'], ['table', 'Table'], ['delta', 'Δ']] as [SortKey, string][]).map(([k, label]) => (
-            <button key={k} onClick={() => setSortKey(k)}
+          {([['order', t.sortRecent], ['table', t.sortTable], ['delta', t.sortDelta]] as [SortKey, string][]).map(([k, label]) => (
+            <button key={k} onClick={() => setSortKey(prev => prev === k && k !== 'order' ? 'order' : k)}
               className={`px-2 py-1 text-xs rounded font-medium transition-colors ${sortKey === k ? 'bg-accent text-white' : 'text-text-muted hover:text-text-secondary'}`}>
               {label}
             </button>
@@ -310,8 +315,8 @@ function DiffView({ diff, onNavigate }: { diff: DiffEntry[]; onNavigate: (d: Dif
                 </p>
                 {d.row >= 0 && (
                   <p className="text-xs font-mono text-text-muted mt-0.5">
-                    ligne&nbsp;<span className="text-text-secondary">{d.row}</span>
-                    &nbsp;·&nbsp;col&nbsp;<span className="text-text-secondary">{d.col}</span>
+                    {t.row}&nbsp;<span className="text-text-secondary">{d.row}</span>
+                    &nbsp;·&nbsp;{t.col}&nbsp;<span className="text-text-secondary">{d.col}</span>
                   </p>
                 )}
               </div>
