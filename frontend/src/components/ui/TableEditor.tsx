@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { BarChart2, Box, Undo2, Save } from 'lucide-react'
+import { BarChart2, Box, Undo2, Redo2, Save } from 'lucide-react'
 import { Surface3D } from './Surface3D'
 import type { TableData } from '@/types'
 
@@ -19,22 +19,29 @@ function heatColor(value: number, min: number, max: number): string {
   const local = t * 3 - seg
   const [r1, g1, b1] = stops[seg]
   const [r2, g2, b2] = stops[seg + 1]
-  const r = Math.round(r1 + (r2 - r1) * local)
-  const g = Math.round(g1 + (g2 - g1) * local)
-  const b = Math.round(b1 + (b2 - b1) * local)
-  return `rgba(${r},${g},${b},0.25)`
+  return `rgba(${Math.round(r1+(r2-r1)*local)},${Math.round(g1+(g2-g1)*local)},${Math.round(b1+(b2-b1)*local)},0.25)`
 }
 
 type View = '2d' | '3d'
 
 export function TableEditor({ table, onSave, isSaving }: TableEditorProps) {
-  const [history, setHistory] = useState<number[][][]>([
+  // Derive dimensions from data — never from table.rows/cols (those are in TableMeta, not TableData)
+  const rows = table.z_values.length
+  const cols = table.z_values[0]?.length ?? 0
+
+  const [history, setHistory] = useState<number[][][]>(() => [
     table.z_values.map(row => [...row])
   ])
   const [historyIndex, setHistoryIndex] = useState(0)
   const values = history[historyIndex]
 
-  const [editing, setEditing] = useState<[number, number] | null>(null)
+  // Use refs so keyboard handlers always read current values without stale closures
+  const editingRef = useRef<[number, number] | null>(null)
+  const editRawRef = useRef('')
+  const valuesRef = useRef(values)
+  valuesRef.current = values
+
+  const [editingState, setEditingState] = useState<[number, number] | null>(null)
   const [editRaw, setEditRaw] = useState('')
   const [view, setView] = useState<View>('2d')
   const isDirty = historyIndex > 0
@@ -45,96 +52,136 @@ export function TableEditor({ table, onSave, isSaving }: TableEditorProps) {
 
   // Reset when table changes
   useEffect(() => {
-    setHistory([table.z_values.map(row => [...row])])
+    const initial = table.z_values.map(row => [...row])
+    setHistory([initial])
     setHistoryIndex(0)
-    setEditing(null)
+    setEditingState(null)
+    editingRef.current = null
   }, [table.id])
 
-  const pushHistory = useCallback((newValues: number[][]) => {
-    setHistory(prev => {
-      const trimmed = prev.slice(0, historyIndex + 1)
-      return [...trimmed, newValues]
-    })
-    setHistoryIndex(i => i + 1)
-  }, [historyIndex])
+  const pushHistory = useCallback((newValues: number[][], currentIndex: number) => {
+    setHistory(prev => [...prev.slice(0, currentIndex + 1), newValues])
+    setHistoryIndex(currentIndex + 1)
+  }, [])
 
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      setEditing(null)
-      setHistoryIndex(i => i - 1)
-    }
-  }, [historyIndex])
+    setHistoryIndex(i => {
+      if (i > 0) { setEditingState(null); return i - 1 }
+      return i
+    })
+  }, [])
 
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(i => i + 1)
+    setHistory(h => {
+      setHistoryIndex(i => (i < h.length - 1 ? i + 1 : i))
+      return h
+    })
+  }, [])
+
+  // Commit current edit, optionally move to another cell
+  const commitAndMove = useCallback((nextCell?: [number, number]) => {
+    const pos = editingRef.current
+    if (pos) {
+      const parsed = parseFloat(editRawRef.current)
+      const [r, c] = pos
+      const current = valuesRef.current[r][c]
+      if (!isNaN(parsed) && Math.abs(parsed - current) > 1e-10) {
+        const next = valuesRef.current.map(row => [...row])
+        next[r][c] = parsed
+        // Read historyIndex from ref to avoid stale closure
+        setHistoryIndex(idx => {
+          setHistory(prev => [...prev.slice(0, idx + 1), next])
+          return idx + 1
+        })
+      }
     }
-  }, [historyIndex, history.length])
+    if (nextCell) {
+      editingRef.current = nextCell
+      setEditingState(nextCell)
+      setEditRaw(String(valuesRef.current[nextCell[0]][nextCell[1]]))
+      editRawRef.current = String(valuesRef.current[nextCell[0]][nextCell[1]])
+    } else {
+      editingRef.current = null
+      setEditingState(null)
+    }
+  }, [])
+
+  const startEdit = useCallback((r: number, c: number) => {
+    const raw = String(valuesRef.current[r][c])
+    editingRef.current = [r, c]
+    editRawRef.current = raw
+    setEditingState([r, c])
+    setEditRaw(raw)
+  }, [])
 
   const save = useCallback(() => {
-    if (isDirty && !isSaving) {
-      onSave(values)
-      setHistory([values])
+    commitAndMove()
+    setHistory(h => {
+      const current = h[historyIndex] ?? h[h.length - 1]
+      onSave(current)
+      setHistory([current])
       setHistoryIndex(0)
-    }
-  }, [isDirty, isSaving, values, onSave])
+      return [current]
+    })
+  }, [commitAndMove, historyIndex, onSave])
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't fire when typing in a cell input
-      if ((e.target as HTMLElement).tagName === 'INPUT') return
+      const tag = (e.target as HTMLElement).tagName
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA'
+      const ctrl = e.ctrlKey || e.metaKey
 
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      if (ctrl && e.key.toLowerCase() === 's') {
         e.preventDefault()
         save()
+        return
       }
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+      if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault()
         undo()
+        return
       }
-      if ((e.ctrlKey || e.metaKey) && (e.shiftKey && e.key === 'z' || e.key === 'y')) {
+      if (ctrl && (e.shiftKey && e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
         e.preventDefault()
         redo()
+        return
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [save, undo, redo])
 
-  const startEdit = (row: number, col: number) => {
-    setEditing([row, col])
-    setEditRaw(String(values[row][col]))
+  const handleCellKeyDown = (e: React.KeyboardEvent, r: number, c: number) => {
+    switch (e.key) {
+      case 'Enter':
+      case 'Tab': {
+        e.preventDefault()
+        const nextR = e.key === 'Enter' || c + 1 >= cols ? Math.min(r + 1, rows - 1) : r
+        const nextC = e.key === 'Enter' ? c : (c + 1 < cols ? c + 1 : 0)
+        commitAndMove([nextR, nextC])
+        break
+      }
+      case 'Escape':
+        editingRef.current = null
+        setEditingState(null)
+        break
+      case 'ArrowUp':
+        if (r > 0) { e.preventDefault(); commitAndMove([r - 1, c]) }
+        break
+      case 'ArrowDown':
+        if (r < rows - 1) { e.preventDefault(); commitAndMove([r + 1, c]) }
+        break
+      case 'ArrowLeft':
+        if (c > 0) { e.preventDefault(); commitAndMove([r, c - 1]) }
+        break
+      case 'ArrowRight':
+        if (c < cols - 1) { e.preventDefault(); commitAndMove([r, c + 1]) }
+        break
+    }
   }
 
-  const commitEdit = useCallback((row: number, col: number) => {
-    const parsed = parseFloat(editRaw)
-    if (!isNaN(parsed) && parsed !== values[row][col]) {
-      const next = values.map(r => [...r])
-      next[row][col] = parsed
-      pushHistory(next)
-    }
-    setEditing(null)
-  }, [editRaw, values, pushHistory])
-
-  const handleKeyDown = (e: React.KeyboardEvent, row: number, col: number) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault()
-      commitEdit(row, col)
-      const nextCol = col + 1 < table.cols ? col + 1 : 0
-      const nextRow = col + 1 < table.cols ? row : Math.min(row + 1, table.rows - 1)
-      setTimeout(() => startEdit(nextRow, nextCol), 0)
-    }
-    if (e.key === 'Escape') setEditing(null)
-    if (e.key === 'ArrowUp' && row > 0) { e.preventDefault(); commitEdit(row, col); setTimeout(() => startEdit(row - 1, col), 0) }
-    if (e.key === 'ArrowDown' && row < table.rows - 1) { e.preventDefault(); commitEdit(row, col); setTimeout(() => startEdit(row + 1, col), 0) }
-    if (e.key === 'ArrowLeft' && col > 0) { e.preventDefault(); commitEdit(row, col); setTimeout(() => startEdit(row, col - 1), 0) }
-    if (e.key === 'ArrowRight' && col < table.cols - 1) { e.preventDefault(); commitEdit(row, col); setTimeout(() => startEdit(row, col + 1), 0) }
-  }
-
-  // Merge current values into table for 3D view
   const tableWith3D = { ...table, z_values: values }
-
   const xVals = table.x_axis.values
   const yVals = table.y_axis?.values ?? []
 
@@ -150,46 +197,32 @@ export function TableEditor({ table, onSave, isSaving }: TableEditorProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View toggle */}
+          {/* 2D / 3D toggle */}
           <div className="flex items-center bg-bg-elevated rounded border border-bg-border p-0.5">
-            <button
-              onClick={() => setView('2d')}
-              title="Grid view"
-              className={`p-1.5 rounded transition-colors ${view === '2d' ? 'bg-bg-surface text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
-            >
+            <button onClick={() => setView('2d')} title="Grid view"
+              className={`p-1.5 rounded transition-colors ${view === '2d' ? 'bg-bg-surface text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>
               <BarChart2 size={14} />
             </button>
-            <button
-              onClick={() => setView('3d')}
-              title="3D surface view"
-              className={`p-1.5 rounded transition-colors ${view === '3d' ? 'bg-bg-surface text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
-            >
+            <button onClick={() => setView('3d')} title="3D surface"
+              className={`p-1.5 rounded transition-colors ${view === '3d' ? 'bg-bg-surface text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>
               <Box size={14} />
             </button>
           </div>
 
-          {/* Undo */}
-          <button
-            onClick={undo}
-            disabled={historyIndex === 0}
-            title="Undo (Ctrl+Z)"
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-elevated
-                       disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
+          {/* Undo / Redo */}
+          <button onClick={undo} disabled={historyIndex === 0} title="Undo (Ctrl+Z)"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             <Undo2 size={14} />
           </button>
+          <button onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Shift+Z)"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            <Redo2 size={14} />
+          </button>
 
-          {isDirty && (
-            <span className="text-warning text-xs font-mono">unsaved</span>
-          )}
+          {isDirty && <span className="text-warning text-xs font-mono">unsaved</span>}
 
-          <button
-            className="btn-primary flex items-center gap-1.5 text-sm py-1.5 px-3
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={save}
-            disabled={!isDirty || isSaving}
-            title="Save (Ctrl+S)"
-          >
+          <button onClick={save} disabled={!isDirty || isSaving} title="Save (Ctrl+S)"
+            className="btn-primary flex items-center gap-1.5 text-sm py-1.5 px-3 disabled:opacity-40 disabled:cursor-not-allowed">
             <Save size={13} />
             {isSaving ? 'Saving…' : 'Save'}
           </button>
@@ -233,23 +266,24 @@ export function TableEditor({ table, onSave, isSaving }: TableEditorProps) {
                       : ''}
                   </td>
                   {row.map((val, ci) => {
-                    const isEditing = editing?.[0] === ri && editing?.[1] === ci
+                    const isEditing = editingState?.[0] === ri && editingState?.[1] === ci
                     return (
-                      <td
-                        key={ci}
+                      <td key={ci}
                         style={{ backgroundColor: heatColor(val, min, max) }}
                         className="border border-bg-border/40 p-0 text-right"
-                        onClick={() => startEdit(ri, ci)}
-                      >
+                        onClick={() => startEdit(ri, ci)}>
                         {isEditing ? (
                           <input
                             autoFocus
                             className="w-16 bg-bg-elevated text-text-primary text-xs font-mono
                                        px-2 py-1 text-right focus:outline-none focus:ring-1 focus:ring-accent"
                             value={editRaw}
-                            onChange={e => setEditRaw(e.target.value)}
-                            onBlur={() => commitEdit(ri, ci)}
-                            onKeyDown={e => handleKeyDown(e, ri, ci)}
+                            onChange={e => {
+                              setEditRaw(e.target.value)
+                              editRawRef.current = e.target.value
+                            }}
+                            onBlur={() => commitAndMove()}
+                            onKeyDown={e => handleCellKeyDown(e, ri, ci)}
                           />
                         ) : (
                           <span className="block px-3 py-1 text-text-primary cursor-pointer hover:text-white transition-colors">
@@ -271,10 +305,8 @@ export function TableEditor({ table, onSave, isSaving }: TableEditorProps) {
         <span>Z: <span className="text-text-secondary">{table.z_units}</span></span>
         <span>min <span className="text-heat-cold">{min.toFixed(2)}</span></span>
         <span>max <span className="text-heat-hot">{max.toFixed(2)}</span></span>
-        <span>{table.rows} × {table.cols}</span>
-        <span className="ml-auto text-text-muted">
-          Ctrl+S save · Ctrl+Z undo · Arrows navigate
-        </span>
+        <span>{rows} × {cols}</span>
+        <span className="ml-auto">Ctrl+S · Ctrl+Z/Y · Arrows</span>
       </div>
     </div>
   )

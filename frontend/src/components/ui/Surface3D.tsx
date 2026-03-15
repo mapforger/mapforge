@@ -31,8 +31,8 @@ function SurfaceMesh({ table }: SurfaceMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null)
 
   const { geometry } = useMemo(() => {
-    const rows = table.rows
-    const cols = table.cols
+    const rows = table.z_values.length
+    const cols = table.z_values[0]?.length ?? 0
     const zFlat = table.z_values.flat()
     const zMin = Math.min(...zFlat)
     const zMax = Math.max(...zFlat)
@@ -92,8 +92,8 @@ function SurfaceMesh({ table }: SurfaceMeshProps) {
 
 function WireframeMesh({ table }: SurfaceMeshProps) {
   const { geometry } = useMemo(() => {
-    const rows = table.rows
-    const cols = table.cols
+    const rows = table.z_values.length
+    const cols = table.z_values[0]?.length ?? 0
     const zFlat = table.z_values.flat()
     const zMin = Math.min(...zFlat)
     const zMax = Math.max(...zFlat)

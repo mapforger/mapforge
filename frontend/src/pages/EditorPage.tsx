@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { TableEditor } from '@/components/ui/TableEditor'
 import { listTables, getTable, writeTable, getDiff, listConstants, deleteSession } from '@/lib/api'
 import type { Session } from '@/types'
-import { FileQuestion, SlidersHorizontal, GitCompare } from 'lucide-react'
+import { FileQuestion, SlidersHorizontal, GitCompare, Search } from 'lucide-react'
 
 interface EditorPageProps {
   session: Session
@@ -148,15 +148,36 @@ function ConstantsView({ constants }: { constants: any[] }) {
 }
 
 function DiffView({ diff }: { diff: any[] }) {
+  const [search, setSearch] = useState('')
+
+  const filtered = useMemo(() =>
+    diff.filter(d => d.description.toLowerCase().includes(search.toLowerCase())),
+    [diff, search]
+  )
+
   if (!diff.length) return (
     <EmptyState icon={GitCompare} title="No changes" description="Modify table values to see the diff here" />
   )
   return (
-    <div className="space-y-2 max-w-2xl">
-      <h2 className="text-text-primary font-semibold mb-4">
-        {diff.length} modification{diff.length !== 1 ? 's' : ''}
-      </h2>
-      {diff.map((d, i) => (
+    <div className="flex flex-col h-full gap-3">
+      {/* Header + search */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <h2 className="text-text-primary font-semibold">
+          {diff.length} modification{diff.length !== 1 ? 's' : ''}
+        </h2>
+        <div className="relative ml-auto">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            className="input pl-8 py-1 text-xs w-48"
+            placeholder="Filter…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+      {/* Scrollable list */}
+      <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+      {filtered.map((d, i) => (
         <div key={i} className="panel px-4 py-3">
           <p className="text-text-secondary text-xs mb-2">{d.description}</p>
           <div className="flex items-center gap-3 font-mono text-xs">
@@ -167,6 +188,7 @@ function DiffView({ diff }: { diff: any[] }) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   )
 }
