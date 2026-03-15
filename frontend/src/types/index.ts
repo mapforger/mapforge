@@ -61,6 +61,24 @@ export interface ChecksumStatus {
   current: ChecksumBlockResult[]
 }
 
+export interface CatalogEntry {
+  id: string
+  title: string
+  car_manufacturer: string
+  car_models: string[]
+  year_from: number | null
+  year_to: number | null
+  engine: string | null
+  power_hp: number | null
+  ecu: string
+  firmware_version: string
+  bin_size: number | null
+  contributor: string
+  trust_level: 'verified' | 'community' | 'unverified'
+  use_count: number
+  notes: string | null
+}
+
 export interface DiffEntry {
   address: string
   original_hex: string

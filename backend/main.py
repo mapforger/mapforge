@@ -31,8 +31,19 @@ from mapforge.xdf_parser import parse_xdf, XDFParseError
 from mapforge.bin_reader import BinReadError, read_table, read_constant
 from mapforge.bin_writer import BinEditor, BinWriteError
 from mapforge.checksum import ChecksumBlock, verify_all, correct_all
+from mapforge.catalog import (
+    init_db, get_session as get_db_session, get_xdf_path,
+    XDFEntry, sha256_bytes, PENDING_DIR,
+)
+from mapforge.catalog_validator import validate_contribution
 
-app = FastAPI(title="MapForge API", version="0.1.0")
+app = FastAPI(title="MapForge API", version="0.2.0")
+
+
+@app.on_event("startup")
+def startup():
+    PENDING_DIR.mkdir(parents=True, exist_ok=True)
+    init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -345,6 +356,191 @@ def checksum_correct(file_id: str, body: ChecksumRequest) -> dict:
     # Update editor buffer
     editor._buf = buf
     return {"results": results}
+
+
+# ---------------------------------------------------------------------------
+# Catalog routes
+# ---------------------------------------------------------------------------
+
+@app.get("/api/catalog/search")
+def catalog_search(
+    q:            str | None = None,
+    manufacturer: str | None = None,
+    ecu:          str | None = None,
+    year:         int | None = None,
+) -> dict:
+    """
+    Search the XDF catalog.
+    Supports free-text (q) and filters: manufacturer, ecu, year.
+    """
+    with get_db_session() as session:
+        query = session.query(XDFEntry)
+
+        if manufacturer:
+            query = query.filter(XDFEntry.car_manufacturer.ilike(f"%{manufacturer}%"))
+        if ecu:
+            query = query.filter(XDFEntry.ecu.ilike(f"%{ecu}%"))
+        if year:
+            query = query.filter(
+                (XDFEntry.year_from <= year) | (XDFEntry.year_from == None),  # noqa: E711
+                (XDFEntry.year_to >= year)   | (XDFEntry.year_to == None),    # noqa: E711
+            )
+        if q:
+            like = f"%{q}%"
+            query = query.filter(
+                XDFEntry.title.ilike(like)
+                | XDFEntry.car_manufacturer.ilike(like)
+                | XDFEntry.car_models.ilike(like)
+                | XDFEntry.ecu.ilike(like)
+                | XDFEntry.engine.ilike(like)
+            )
+
+        entries = query.order_by(XDFEntry.use_count.desc(), XDFEntry.title).all()
+        return {"entries": [e.to_dict() for e in entries], "count": len(entries)}
+
+
+@app.get("/api/catalog/{entry_id}")
+def catalog_get(entry_id: str) -> dict:
+    with get_db_session() as session:
+        entry = session.get(XDFEntry, entry_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail="Catalog entry not found")
+        return entry.to_dict()
+
+
+@app.post("/api/session/create_from_catalog")
+async def create_session_from_catalog(
+    catalog_id: str,
+    bin_file: UploadFile = File(...),
+) -> dict:
+    """
+    Create an editing session using a catalog XDF + an uploaded BIN.
+    Increments the use_count for the catalog entry.
+    """
+    with get_db_session() as session:
+        entry = session.get(XDFEntry, catalog_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail="Catalog entry not found")
+
+        xdf_path = get_xdf_path(entry.filename)
+        if not xdf_path.exists():
+            raise HTTPException(status_code=500, detail="XDF file missing from catalog")
+
+        # Increment use count
+        entry.use_count += 1
+        session.commit()
+
+        xdf_filename = entry.filename
+        xdf_title = entry.title
+
+    bin_data = await bin_file.read()
+
+    try:
+        xdf = parse_xdf(xdf_path)
+    except XDFParseError as e:
+        raise HTTPException(status_code=400, detail=f"XDF parse error: {e}")
+
+    editor = BinEditor(bin_data)
+    checksum_blocks = [
+        {
+            "data_start":      b.data_start,
+            "data_end":        b.data_end,
+            "store_address":   b.store_address,
+            "store_size":      b.store_size,
+            "algorithm":       b.algorithm,
+            "store_lsb_first": b.lsb_first,
+            "label":           b.title,
+        }
+        for b in xdf.checksums
+    ]
+
+    file_id = str(uuid.uuid4())
+    _sessions[file_id] = {
+        "xdf":              xdf,
+        "editor":           editor,
+        "original_data":    bytes(bin_data),
+        "checksum_blocks":  checksum_blocks,
+        "bin_name":         bin_file.filename or "file.bin",
+        "xdf_name":         xdf_filename,
+    }
+
+    return {
+        "file_id":         file_id,
+        "bin_name":        bin_file.filename,
+        "xdf_name":        xdf_filename,
+        "bin_size":        len(bin_data),
+        "xdf_title":       xdf_title,
+        "table_count":     len(xdf.tables),
+        "constant_count":  len(xdf.constants),
+    }
+
+
+@app.post("/api/catalog/contribute")
+async def catalog_contribute(
+    xdf_file:         UploadFile = File(...),
+    car_manufacturer: str = "",
+    car_models:       str = "",   # comma-separated
+    year_from:        str = "",
+    year_to:          str = "",
+    engine:           str = "",
+    power_hp:         str = "",
+    ecu:              str = "",
+    firmware_version: str = "",
+    contributor:      str = "anonymous",
+    notes:            str = "",
+) -> dict:
+    """
+    Submit a new XDF for catalog inclusion.
+    Validates the file and metadata, then saves to uploads/catalog_pending/.
+    Returns validation result + a pending ID.
+    """
+    xdf_data = await xdf_file.read()
+
+    models_list = [m.strip() for m in car_models.split(",") if m.strip()]
+    metadata = {
+        "car_manufacturer": car_manufacturer.strip(),
+        "car_models":       models_list,
+        "ecu":              ecu.strip(),
+        "firmware_version": firmware_version.strip(),
+    }
+
+    with get_db_session() as session:
+        result = validate_contribution(xdf_data, metadata, session)
+
+    if not result.ok:
+        raise HTTPException(status_code=422, detail={
+            "errors":   result.errors,
+            "warnings": result.warnings,
+        })
+
+    # Save pending file
+    import json as _json
+    pending_id = str(uuid.uuid4())
+    pending_dir = PENDING_DIR / pending_id
+    pending_dir.mkdir(parents=True)
+    (pending_dir / "file.xdf").write_bytes(xdf_data)
+    (pending_dir / "metadata.json").write_text(_json.dumps({
+        "car_manufacturer": car_manufacturer.strip(),
+        "car_models":       models_list,
+        "year_from":        int(year_from) if year_from.strip().isdigit() else None,
+        "year_to":          int(year_to)   if year_to.strip().isdigit()   else None,
+        "engine":           engine.strip(),
+        "power_hp":         int(power_hp) if power_hp.strip().isdigit() else None,
+        "ecu":              ecu.strip(),
+        "firmware_version": firmware_version.strip(),
+        "contributor":      contributor.strip() or "anonymous",
+        "notes":            notes.strip(),
+        "original_filename": xdf_file.filename,
+        **result.extracted,
+    }, indent=2))
+
+    return {
+        "status":   "pending",
+        "pending_id": pending_id,
+        "warnings": result.warnings,
+        "extracted": result.extracted,
+        "message":  "Your XDF has been submitted for review. Thank you for contributing!",
+    }
 
 
 @app.delete("/api/session/{file_id}")

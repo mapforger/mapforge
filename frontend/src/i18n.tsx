@@ -70,6 +70,37 @@ export const en = {
   uploadError:      'Failed to load files. Check your XDF and BIN.',
   // Surface 3D
   surfaceHint:      'drag to rotate · scroll to zoom',
+  // Upload tabs
+  tabLibrary:       'Browse library',
+  tabLocal:         'Local files',
+  // Catalog browser
+  catalogSearch:    'Search by car, ECU, engine…',
+  catalogEmpty:     'No XDF found',
+  catalogEmptyDesc: 'Try different search terms, or use a local XDF file.',
+  catalogLoading:   'Loading catalog…',
+  trustVerified:    'Verified',
+  trustCommunity:   'Community',
+  trustUnverified:  'Unverified',
+  usedBy:           (n: number) => `${n} user${n !== 1 ? 's' : ''}`,
+  selectThisXdf:    'Use this XDF',
+  binRequired:      'Drop your .bin file here',
+  contributeTitle:  'Contribute an XDF',
+  contributeDesc:   'Help the community by sharing a verified XDF definition.',
+  contributeBtn:    'Contribute an XDF',
+  backToLibrary:    '← Back',
+  // Contribute form
+  fieldManufacturer:  'Car manufacturer',
+  fieldModels:        'Car models (comma-separated)',
+  fieldYearFrom:      'Year from',
+  fieldYearTo:        'Year to',
+  fieldEngine:        'Engine',
+  fieldPower:         'Power (hp)',
+  fieldEcu:           'ECU',
+  fieldFirmware:      'Firmware version',
+  fieldContributor:   'Your name / nickname',
+  fieldNotes:         'Notes',
+  submitContribution: 'Submit for review',
+  contributionSent:   'Submitted! Your XDF is pending review.',
 }
 
 export const fr: typeof en = {
@@ -135,6 +166,37 @@ export const fr: typeof en = {
   uploadError:      'Échec du chargement. Vérifiez votre XDF et BIN.',
   // Surface 3D
   surfaceHint:      'glisser pour pivoter · molette pour zoomer',
+  // Upload tabs
+  tabLibrary:       'Parcourir la bibliothèque',
+  tabLocal:         'Fichier local',
+  // Catalog browser
+  catalogSearch:    'Rechercher par voiture, ECU, moteur…',
+  catalogEmpty:     'Aucun XDF trouvé',
+  catalogEmptyDesc: 'Essayez d\'autres termes, ou utilisez un fichier XDF local.',
+  catalogLoading:   'Chargement du catalogue…',
+  trustVerified:    'Vérifié',
+  trustCommunity:   'Communauté',
+  trustUnverified:  'Non vérifié',
+  usedBy:           (n: number) => `${n} utilisateur${n !== 1 ? 's' : ''}`,
+  selectThisXdf:    'Utiliser ce XDF',
+  binRequired:      'Déposez votre fichier .bin ici',
+  contributeTitle:  'Contribuer un XDF',
+  contributeDesc:   'Aidez la communauté en partageant une définition XDF vérifiée.',
+  contributeBtn:    'Contribuer un XDF',
+  backToLibrary:    '← Retour',
+  // Contribute form
+  fieldManufacturer:  'Constructeur',
+  fieldModels:        'Modèles (séparés par des virgules)',
+  fieldYearFrom:      'Année début',
+  fieldYearTo:        'Année fin',
+  fieldEngine:        'Moteur',
+  fieldPower:         'Puissance (ch)',
+  fieldEcu:           'ECU',
+  fieldFirmware:      'Version firmware',
+  fieldContributor:   'Votre nom / pseudo',
+  fieldNotes:         'Notes',
+  submitContribution: 'Soumettre pour vérification',
+  contributionSent:   'Envoyé ! Votre XDF est en attente de vérification.',
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────

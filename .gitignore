@@ -106,6 +106,14 @@ sessions/
 tmp/
 temp/
 
+# ─── Catalog (generated DB, pending contributions) ────────────────────────────
+catalog/catalog.db
+catalog/catalog.db-shm
+catalog/catalog.db-wal
+# Allow catalog XDF files and index
+!catalog/xdf/
+!catalog/index.json
+
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 *.log.*
