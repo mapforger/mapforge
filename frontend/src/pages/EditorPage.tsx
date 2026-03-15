@@ -91,7 +91,10 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
         session={session}
         onClose={handleClose}
         checksumStatus={checksumStatus}
-        onFixChecksums={() => fixMutation.mutate()}
+        onFixChecksums={async () => {
+          await fixChecksums(session.file_id)
+          queryClient.invalidateQueries({ queryKey: ['checksum', session.file_id] })
+        }}
         isFixing={fixMutation.isPending}
       />
       <div className="flex flex-1 min-h-0">

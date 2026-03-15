@@ -7,18 +7,23 @@ interface TopbarProps {
   session: Session
   onClose: () => void
   checksumStatus?: ChecksumStatus
-  onFixChecksums?: () => void
+  onFixChecksums?: () => Promise<void>
   isFixing?: boolean
 }
 
 export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFixing }: TopbarProps) {
   const [exporting, setExporting] = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
+  const [exportConfirm, setExportConfirm] = useState(false)
   const sizeKB = (session.bin_size / 1024).toFixed(1)
   const stem = session.bin_name.replace(/\.[^.]+$/, '')
   const suggestedName = `${stem}_modified.bin`
 
-  const handleExport = async () => {
+  const invalidChecksums = checksumStatus?.has_blocks
+    ? checksumStatus.current.filter(r => !r.valid).length
+    : 0
+
+  const doExport = async () => {
     setExporting(true)
     try {
       const url = exportBin(session.file_id)
@@ -50,6 +55,20 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
     } finally {
       setExporting(false)
     }
+  }
+
+  const handleExport = () => {
+    if (invalidChecksums > 0) {
+      setExportConfirm(true)
+    } else {
+      doExport()
+    }
+  }
+
+  const handleFixAndExport = async () => {
+    setExportConfirm(false)
+    if (onFixChecksums) await onFixChecksums()
+    await doExport()
   }
 
   return (
@@ -100,6 +119,46 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
           onFix={onFixChecksums}
           isFixing={!!isFixing}
         />
+      )}
+
+      {/* Export confirmation modal */}
+      {exportConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setExportConfirm(false)}>
+          <div className="bg-bg-surface border border-bg-border rounded-xl p-6 w-[420px] shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <ShieldAlert size={28} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-text-primary font-semibold text-base">
+                  {invalidChecksums} checksum{invalidChecksums > 1 ? 's' : ''} invalide{invalidChecksums > 1 ? 's' : ''}
+                </h3>
+                <p className="text-text-muted text-sm mt-1">
+                  Exporter un fichier avec des checksums incorrects empêchera probablement l'ECU de démarrer.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {onFixChecksums && (
+                <button onClick={handleFixAndExport} disabled={exporting}
+                  className="btn-primary flex items-center justify-center gap-2 py-2.5 disabled:opacity-50">
+                  <Wrench size={15} />
+                  Corriger les checksums puis exporter
+                </button>
+              )}
+              <button onClick={() => { setExportConfirm(false); doExport() }} disabled={exporting}
+                className="flex items-center justify-center gap-2 py-2.5 px-4 rounded text-sm
+                  text-amber-400 border border-amber-400/30 hover:bg-amber-400/10 transition-colors">
+                Exporter quand même (risqué)
+              </button>
+              <button onClick={() => setExportConfirm(false)}
+                className="btn-ghost py-2.5 text-sm">
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </header>
   )
