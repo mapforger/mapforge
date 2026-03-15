@@ -1,0 +1,122 @@
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+*.wheel
+
+# ─── Virtual environments ─────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env/
+virtualenv/
+
+# ─── Environment variables ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.secret
+secrets.json
+
+# ─── Tests & coverage ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# ─── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+.npm/
+.yarn/
+*.lock
+!package-lock.json
+
+# ─── AI assistant files ───────────────────────────────────────────────────────
+CLAUDE.md
+.claude/
+.cursorrules
+.cursorignore
+.aider*
+.copilot/
+.github/copilot*
+*.ai.md
+AI_NOTES.md
+.codeium/
+.continue/
+.tabnine*
+
+# ─── IDE — VSCode ─────────────────────────────────────────────────────────────
+.vscode/
+*.code-workspace
+
+# ─── IDE — JetBrains (PyCharm, IntelliJ, WebStorm…) ──────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ─── IDE — Vim / Neovim ───────────────────────────────────────────────────────
+*.swp
+*.swo
+*.swn
+.vim/
+Session.vim
+tags
+
+# ─── IDE — Emacs ──────────────────────────────────────────────────────────────
+*~
+\#*\#
+.#*
+*.elc
+
+# ─── IDE — Sublime Text ───────────────────────────────────────────────────────
+*.sublime-project
+*.sublime-workspace
+
+# ─── ECU binary & definition files (user data) ────────────────────────────────
+*.bin
+*.ori
+*.mod
+*.hex
+*.s19
+*.srec
+sample_data/*.bin
+sample_data/*.xdf
+
+# ─── Runtime / uploads ────────────────────────────────────────────────────────
+uploads/
+sessions/
+tmp/
+temp/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+*.log.*
+logs/
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
