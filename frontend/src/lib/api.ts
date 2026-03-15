@@ -34,6 +34,10 @@ export const listConstants = async (fileId: string): Promise<Constant[]> => {
   return data.constants
 }
 
+export const writeConstant = async (fileId: string, constantId: string, value: number): Promise<void> => {
+  await api.put(`/constant/${fileId}/${constantId}`, { value })
+}
+
 export const getDiff = async (fileId: string): Promise<DiffEntry[]> => {
   const { data } = await api.get(`/diff/${fileId}`)
   return data.diff

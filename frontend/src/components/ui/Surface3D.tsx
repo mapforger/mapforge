@@ -138,23 +138,24 @@ interface Surface3DProps {
 }
 
 export function Surface3D({ table }: Surface3DProps) {
+  const flat = table.z_values.flat()
+  const zMin = Math.min(...flat)
+  const zMax = Math.max(...flat)
+  const xVals = table.x_axis.values
+  const yVals = table.y_axis?.values ?? []
+
   return (
-    <div className="w-full h-full rounded-lg overflow-hidden bg-bg-base">
+    <div className="relative w-full h-full rounded-lg overflow-hidden">
       <Canvas
         camera={{ position: [1.2, 0.9, 1.2], fov: 45 }}
         gl={{ antialias: true }}
-        style={{ background: '#0A0A0F' }}
+        style={{ background: '#0A0A0F', width: '100%', height: '100%' }}
       >
-        {/* Lighting */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[2, 4, 2]} intensity={1.2} color="#ffffff" />
         <directionalLight position={[-2, 2, -2]} intensity={0.4} color="#7090ff" />
-
-        {/* Surface */}
         <SurfaceMesh table={table} />
         <WireframeMesh table={table} />
-
-        {/* Controls */}
         <OrbitControls
           makeDefault
           enableDamping
@@ -164,6 +165,40 @@ export function Surface3D({ table }: Surface3DProps) {
           maxDistance={4}
         />
       </Canvas>
+
+      {/* Axis legend overlay */}
+      <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between pointer-events-none">
+        {/* Axis info */}
+        <div className="bg-bg-base/80 backdrop-blur-sm rounded px-3 py-2 text-[11px] font-mono space-y-0.5">
+          <div className="text-text-muted">
+            X <span className="text-text-secondary">{table.x_axis.units}</span>
+            {xVals.length > 0 && <span className="text-text-muted ml-1">{xVals[0]} – {xVals[xVals.length - 1]}</span>}
+          </div>
+          {yVals.length > 0 && (
+            <div className="text-text-muted">
+              Y <span className="text-text-secondary">{table.y_axis?.units}</span>
+              <span className="text-text-muted ml-1">{yVals[0]} – {yVals[yVals.length - 1]}</span>
+            </div>
+          )}
+          <div className="text-text-muted">
+            Z <span className="text-text-secondary">{table.z_units}</span>
+            <span className="text-text-muted ml-1">{zMin.toFixed(2)} – {zMax.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Heatmap scale */}
+        <div className="bg-bg-base/80 backdrop-blur-sm rounded px-3 py-2 text-[11px] font-mono flex items-center gap-2">
+          <span className="text-blue-400">{zMin.toFixed(1)}</span>
+          <div className="w-20 h-2 rounded" style={{
+            background: 'linear-gradient(to right, #1E40AF, #16A34A, #D97706, #DC2626)'
+          }} />
+          <span className="text-red-400">{zMax.toFixed(1)}</span>
+        </div>
+      </div>
+
+      <div className="absolute top-3 right-3 text-[10px] font-mono text-text-muted/50 pointer-events-none">
+        drag to rotate · scroll to zoom
+      </div>
     </div>
   )
 }

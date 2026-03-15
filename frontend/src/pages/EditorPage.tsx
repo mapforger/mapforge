@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { TableEditor } from '@/components/ui/TableEditor'
-import { listTables, getTable, writeTable, getDiff, listConstants, deleteSession } from '@/lib/api'
+import { listTables, getTable, writeTable, getDiff, listConstants, writeConstant, deleteSession, exportBin } from '@/lib/api'
 import type { Session } from '@/types'
-import { FileQuestion, SlidersHorizontal, GitCompare, Search } from 'lucide-react'
+import { FileQuestion, SlidersHorizontal, GitCompare, Search, Check, X } from 'lucide-react'
 
 interface EditorPageProps {
   session: Session
@@ -95,7 +95,11 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
           )}
 
           {activeView === 'constants' && (
-            <ConstantsView constants={constants} />
+            <ConstantsView
+              constants={constants}
+              fileId={session.file_id}
+              onChanged={() => queryClient.invalidateQueries({ queryKey: ['constants', session.file_id] })}
+            />
           )}
 
           {activeView === 'diff' && (
@@ -121,28 +125,82 @@ function EmptyState({ icon: Icon, title, description }: {
   )
 }
 
-function ConstantsView({ constants }: { constants: any[] }) {
+function ConstantsView({ constants, fileId, onChanged }: { constants: any[]; fileId: string; onChanged: () => void }) {
   if (!constants.length) return (
     <EmptyState icon={SlidersHorizontal} title="No constants" description="This XDF has no constants defined" />
   )
   return (
-    <div className="space-y-2 max-w-2xl">
+    <div className="space-y-2 max-w-2xl overflow-y-auto h-full pr-1">
       <h2 className="text-text-primary font-semibold mb-4">Constants</h2>
       {constants.map(c => (
-        <div key={c.id} className="panel px-4 py-3 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-text-primary text-sm font-medium">{c.title}</p>
-            {c.description && <p className="text-text-muted text-xs mt-0.5">{c.description}</p>}
-          </div>
-          {c.error ? (
-            <span className="text-error text-xs font-mono">{c.error}</span>
-          ) : (
-            <span className="text-accent font-mono text-sm">
-              {c.value} <span className="text-text-muted">{c.units}</span>
-            </span>
-          )}
-        </div>
+        <ConstantRow key={c.id} constant={c} fileId={fileId} onChanged={onChanged} />
       ))}
+    </div>
+  )
+}
+
+function ConstantRow({ constant: c, fileId, onChanged }: { constant: any; fileId: string; onChanged: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [raw, setRaw] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const startEdit = () => {
+    setRaw(String(parseFloat(c.value.toPrecision(8))))
+    setEditing(true)
+  }
+
+  const cancel = () => setEditing(false)
+
+  const commit = async () => {
+    const val = parseFloat(raw)
+    if (isNaN(val)) { cancel(); return }
+    setSaving(true)
+    try {
+      await writeConstant(fileId, c.id, val)
+      onChanged()
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') commit()
+    if (e.key === 'Escape') cancel()
+  }
+
+  return (
+    <div className="panel px-4 py-3 flex items-center justify-between gap-4">
+      <div>
+        <p className="text-text-primary text-sm font-medium">{c.title}</p>
+        {c.description && <p className="text-text-muted text-xs mt-0.5">{c.description}</p>}
+      </div>
+      {c.error ? (
+        <span className="text-error text-xs font-mono">{c.error}</span>
+      ) : editing ? (
+        <div className="flex items-center gap-1.5">
+          <input autoFocus
+            className="input w-28 py-1 text-sm text-right"
+            value={raw}
+            onChange={e => setRaw(e.target.value)}
+            onKeyDown={onKey}
+          />
+          <span className="text-text-muted text-xs font-mono">{c.units}</span>
+          <button onClick={commit} disabled={saving}
+            className="p-1 rounded text-success hover:bg-success/10 transition-colors">
+            <Check size={14} />
+          </button>
+          <button onClick={cancel}
+            className="p-1 rounded text-text-muted hover:bg-bg-elevated transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        <button onClick={startEdit}
+          className="text-accent font-mono text-sm hover:text-accent-hover transition-colors cursor-pointer">
+          {parseFloat(c.value.toPrecision(8))} <span className="text-text-muted">{c.units}</span>
+        </button>
+      )}
     </div>
   )
 }
