@@ -4,19 +4,21 @@ import { Surface3D } from './Surface3D'
 import type { TableData } from '@/types'
 
 // ── History reducer ──────────────────────────────────────────────────────────
-type HS = { stack: number[][][]; idx: number }
+type HS = { stack: number[][][]; idx: number; savedIdx: number }
 type HA =
   | { type: 'push'; v: number[][] }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'reset'; v: number[][] }
+  | { type: 'mark_saved' }
 
 function reduce(s: HS, a: HA): HS {
   switch (a.type) {
-    case 'push': return { stack: [...s.stack.slice(0, s.idx + 1), a.v], idx: s.idx + 1 }
+    case 'push': return { ...s, stack: [...s.stack.slice(0, s.idx + 1), a.v], idx: s.idx + 1 }
     case 'undo': return { ...s, idx: Math.max(0, s.idx - 1) }
     case 'redo': return { ...s, idx: Math.min(s.stack.length - 1, s.idx + 1) }
-    case 'reset': return { stack: [a.v], idx: 0 }
+    case 'reset': return { stack: [a.v], idx: 0, savedIdx: 0 }
+    case 'mark_saved': return { ...s, savedIdx: s.idx }
   }
 }
 
@@ -47,9 +49,10 @@ export function TableEditor({ table, onSave, isSaving, highlightCell, modifiedCe
   const [hist, dispatch] = useReducer(reduce, null, () => ({
     stack: [table.z_values.map(r => [...r])],
     idx: 0,
+    savedIdx: 0,
   }))
   const values = hist.stack[hist.idx]
-  const isDirty = hist.idx > 0
+  const isDirty = hist.idx !== hist.savedIdx
 
   // Edit state
   const [editPos, setEditPos] = useState<[number, number] | null>(null)
@@ -110,7 +113,7 @@ export function TableEditor({ table, onSave, isSaving, highlightCell, modifiedCe
   }, [])
 
   const save = useCallback(() => {
-    // Flush any pending edit synchronously via refs, then save
+    // Flush any pending edit, push to history if it changed a value, then mark saved
     const pos = editPosRef.current
     let final = valuesRef.current
     if (pos) {
@@ -118,12 +121,13 @@ export function TableEditor({ table, onSave, isSaving, highlightCell, modifiedCe
       if (!isNaN(parsed) && Math.abs(parsed - final[pos[0]][pos[1]]) > 1e-9) {
         final = final.map(row => [...row])
         final[pos[0]][pos[1]] = parsed
+        dispatchRef.current({ type: 'push', v: final })
       }
       editPosRef.current = null
       setEditPos(null)
     }
     onSave(final)
-    dispatchRef.current({ type: 'reset', v: final })
+    dispatchRef.current({ type: 'mark_saved' })
   }, [onSave])
 
   // Global shortcuts

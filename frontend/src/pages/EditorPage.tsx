@@ -171,25 +171,31 @@ function ConstantRow({ constant: c, fileId, onChanged }: { constant: any; fileId
   }
 
   return (
-    <div className="panel px-4 py-3 flex items-center justify-between gap-4">
-      <div>
-        <p className="text-text-primary text-sm font-medium">{c.title}</p>
-        {c.description && <p className="text-text-muted text-xs mt-0.5">{c.description}</p>}
+    <div className="panel px-4 py-2.5 flex items-center justify-between gap-4">
+      <div className="min-w-0 flex-1">
+        <p className="text-text-primary text-sm font-semibold truncate">{c.title}</p>
+        {c.description && <p className="text-text-muted text-[11px] mt-0.5 truncate">{c.description}</p>}
       </div>
       {c.error ? (
-        <span className="text-error text-xs font-mono">{c.error}</span>
+        <span className="text-error text-xs font-mono flex-shrink-0">{c.error}</span>
       ) : editing ? (
-        <div className="flex items-center gap-1.5">
-          <input autoFocus className="input w-28 py-1 text-sm text-right" value={raw}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <input autoFocus className="input w-24 py-1 text-sm text-right font-mono" value={raw}
             onChange={e => setRaw(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') cancel() }} />
           <span className="text-text-muted text-xs font-mono">{c.units}</span>
-          <button onClick={commit} disabled={saving} className="p-1 rounded text-success hover:bg-success/10 transition-colors"><Check size={14} /></button>
-          <button onClick={cancel} className="p-1 rounded text-text-muted hover:bg-bg-elevated transition-colors"><X size={14} /></button>
+          <button onClick={commit} disabled={saving}
+            className="p-1 rounded text-success hover:bg-success/10 transition-colors"><Check size={14} /></button>
+          <button onClick={cancel}
+            className="p-1 rounded text-text-muted hover:bg-bg-elevated transition-colors"><X size={14} /></button>
         </div>
       ) : (
-        <button onClick={startEdit} className="text-accent font-mono text-sm hover:text-accent-hover transition-colors">
-          {parseFloat(c.value.toPrecision(8))} <span className="text-text-muted">{c.units}</span>
+        <button onClick={startEdit}
+          className="flex items-baseline gap-1.5 flex-shrink-0 group transition-colors">
+          <span className="font-mono font-bold text-base text-accent group-hover:text-accent-hover">
+            {parseFloat(c.value.toPrecision(8))}
+          </span>
+          <span className="text-text-muted text-xs font-mono group-hover:text-text-secondary">{c.units}</span>
         </button>
       )}
     </div>
@@ -237,7 +243,7 @@ function DiffView({ diff, onNavigate }: { diff: DiffEntry[]; onNavigate: (d: Dif
         <div className="flex items-center gap-1 bg-bg-elevated rounded border border-bg-border p-0.5">
           {([['order', 'Time'], ['table', 'Table'], ['delta', 'Δ']] as [SortKey, string][]).map(([k, label]) => (
             <button key={k} onClick={() => setSortKey(k)}
-              className={`px-2 py-1 text-xs rounded transition-colors ${sortKey === k ? 'bg-bg-surface text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>
+              className={`px-2 py-1 text-xs rounded font-medium transition-colors ${sortKey === k ? 'bg-accent text-white' : 'text-text-muted hover:text-text-secondary'}`}>
               {label}
             </button>
           ))}
@@ -245,7 +251,7 @@ function DiffView({ diff, onNavigate }: { diff: DiffEntry[]; onNavigate: (d: Dif
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-1 pr-1">
         {processed.map((d: DiffEntry, i: number) => {
           const delta = d.new_phys !== null && d.original_phys !== null
             ? d.new_phys - d.original_phys : null
@@ -255,38 +261,48 @@ function DiffView({ diff, onNavigate }: { diff: DiffEntry[]; onNavigate: (d: Dif
           return (
             <div key={i}
               onClick={() => canNav && onNavigate(d)}
-              className={`panel px-4 py-2.5 flex items-center gap-3 transition-colors
+              className={`panel px-3 py-2 flex items-center gap-3 transition-colors
                 ${canNav ? 'cursor-pointer hover:border-accent/40 hover:bg-bg-elevated' : ''}`}>
-              {/* Table + position */}
+
+              {/* Left: table name + cell position */}
               <div className="flex-1 min-w-0">
-                <p className="text-text-primary text-xs font-medium truncate">{d.table_title || d.description}</p>
+                <p className="text-text-primary text-xs font-semibold truncate leading-snug">
+                  {d.table_title || d.description}
+                </p>
                 {d.row >= 0 && (
-                  <p className="text-text-muted text-[11px] font-mono">row {d.row} · col {d.col}</p>
+                  <p className="text-[10px] font-mono mt-0.5">
+                    <span className="text-text-muted">r</span><span className="text-text-secondary">{d.row}</span>
+                    <span className="text-text-muted mx-1">·</span>
+                    <span className="text-text-muted">c</span><span className="text-text-secondary">{d.col}</span>
+                  </p>
                 )}
               </div>
-              {/* Values */}
+
+              {/* Right: value change */}
               {d.original_phys !== null && d.new_phys !== null ? (
-                <div className="flex items-center gap-2 font-mono text-xs flex-shrink-0">
-                  <span className="text-text-muted">{parseFloat(d.original_phys.toPrecision(6))}</span>
-                  <span className="text-text-muted">→</span>
-                  <span className={isUp ? 'text-red-400' : 'text-blue-400'}>
-                    {parseFloat(d.new_phys.toPrecision(6))}
+                <div className="flex items-center gap-1.5 font-mono text-xs flex-shrink-0">
+                  <span className="text-text-muted line-through decoration-text-muted/40">
+                    {parseFloat(d.original_phys.toPrecision(5))}
                   </span>
-                  <span className="text-text-muted">{d.units}</span>
+                  <span className={`font-bold text-sm ${isUp ? 'text-red-400' : 'text-blue-400'}`}>
+                    {parseFloat(d.new_phys.toPrecision(5))}
+                  </span>
+                  <span className="text-text-muted text-[10px]">{d.units}</span>
                   {delta !== null && (
-                    <span className={`text-[10px] ${isUp ? 'text-red-400' : 'text-blue-400'}`}>
-                      {isUp ? '+' : ''}{parseFloat(delta.toPrecision(4))}
+                    <span className={`text-[10px] font-semibold px-1 py-0.5 rounded
+                      ${isUp ? 'bg-red-400/10 text-red-400' : 'bg-blue-400/10 text-blue-400'}`}>
+                      {isUp ? '+' : ''}{parseFloat(delta.toPrecision(3))}
                     </span>
                   )}
                 </div>
               ) : (
-                <div className="flex items-center gap-2 font-mono text-[11px] flex-shrink-0">
+                <div className="flex items-center gap-1.5 font-mono text-[10px] flex-shrink-0">
                   <span className="text-error bg-error/10 px-1.5 py-0.5 rounded">{d.original_hex}</span>
                   <span className="text-text-muted">→</span>
                   <span className="text-success bg-success/10 px-1.5 py-0.5 rounded">{d.modified_hex}</span>
                 </div>
               )}
-              {canNav && <span className="text-text-muted text-[10px]">↗</span>}
+              {canNav && <span className="text-accent/40 text-[10px]">↗</span>}
             </div>
           )
         })}
