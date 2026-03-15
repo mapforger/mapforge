@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { TableEditor } from '@/components/ui/TableEditor'
 import { listTables, getTable, writeTable, getDiff, listConstants, writeConstant, deleteSession, getChecksumStatus, fixChecksums } from '@/lib/api'
+import { useToast, apiError } from '@/components/ui/Toast'
 import type { Session, DiffEntry } from '@/types'
 import { FileQuestion, SlidersHorizontal, GitCompare, Search, ArrowUpDown, Check, X } from 'lucide-react'
 
@@ -17,6 +18,7 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
   const [activeView, setActiveView]             = useState<'tables' | 'constants' | 'diff'>('tables')
   const [highlightCell, setHighlightCell]       = useState<[number, number] | null>(null)
   const queryClient = useQueryClient()
+  const { toast } = useToast()
 
   const { data: tables = [] } = useQuery({
     queryKey: ['tables', session.file_id],
@@ -52,13 +54,16 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
       queryClient.invalidateQueries({ queryKey: ['diff', session.file_id] })
       queryClient.invalidateQueries({ queryKey: ['checksum', session.file_id] })
     },
+    onError: (err) => toast({ message: `Erreur sauvegarde : ${apiError(err)}`, variant: 'error' }),
   })
 
   const fixMutation = useMutation({
     mutationFn: () => fixChecksums(session.file_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checksum', session.file_id] })
+      toast({ message: 'Checksums corrigés', variant: 'success' })
     },
+    onError: (err) => toast({ message: `Erreur checksums : ${apiError(err)}`, variant: 'error' }),
   })
 
   const handleClose = async () => {
@@ -184,6 +189,7 @@ function ConstantRow({ constant: c, fileId, onChanged }: { constant: any; fileId
   const [editing, setEditing] = useState(false)
   const [raw, setRaw]         = useState('')
   const [saving, setSaving]   = useState(false)
+  const { toast } = useToast()
 
   const startEdit = () => { setRaw(String(parseFloat(c.value.toPrecision(8)))); setEditing(true) }
   const cancel    = () => setEditing(false)
@@ -191,8 +197,16 @@ function ConstantRow({ constant: c, fileId, onChanged }: { constant: any; fileId
     const val = parseFloat(raw)
     if (isNaN(val)) { cancel(); return }
     setSaving(true)
-    try { await writeConstant(fileId, c.id, val); onChanged(); setEditing(false) }
-    finally { setSaving(false) }
+    try {
+      await writeConstant(fileId, c.id, val)
+      onChanged()
+      setEditing(false)
+      toast({ message: `${c.title} mis à jour`, variant: 'success' })
+    } catch (err) {
+      toast({ message: `Erreur : ${apiError(err)}`, variant: 'error' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

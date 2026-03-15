@@ -46,8 +46,8 @@ function SurfaceMesh({ table }: SurfaceMeshProps) {
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const x = c / (cols - 1) - 0.5      // -0.5 .. 0.5
-        const z = r / (rows - 1) - 0.5      // -0.5 .. 0.5
+        const x = cols > 1 ? c / (cols - 1) - 0.5 : 0
+        const z = rows > 1 ? r / (rows - 1) - 0.5 : 0
         const rawZ = table.z_values[r][c]
         const y = ((rawZ - zMin) / zRange) * 0.6  // height 0..0.6
 
@@ -104,8 +104,8 @@ function WireframeMesh({ table }: SurfaceMeshProps) {
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const x = c / (cols - 1) - 0.5
-        const z = r / (rows - 1) - 0.5
+        const x = cols > 1 ? c / (cols - 1) - 0.5 : 0
+        const z = rows > 1 ? r / (rows - 1) - 0.5 : 0
         const y = ((table.z_values[r][c] - zMin) / zRange) * 0.6
         positions.push(x, y, z)
       }

@@ -2,6 +2,7 @@ import { Download, Trash2, Zap, ShieldCheck, ShieldAlert, Shield, X, Wrench } fr
 import type { Session, ChecksumStatus, ChecksumBlockResult } from '@/types'
 import { exportBin } from '@/lib/api'
 import { useState } from 'react'
+import { useToast, apiError } from '@/components/ui/Toast'
 
 interface TopbarProps {
   session: Session
@@ -15,6 +16,7 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
   const [exporting, setExporting] = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
+  const { toast } = useToast()
   const sizeKB = (session.bin_size / 1024).toFixed(1)
   const stem = session.bin_name.replace(/\.[^.]+$/, '')
   const suggestedName = `${stem}_modified.bin`
@@ -52,6 +54,9 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
       a.download = suggestedName
       a.click()
       URL.revokeObjectURL(a.href)
+      toast({ message: `${suggestedName} exporté`, variant: 'success' })
+    } catch (err) {
+      toast({ message: `Erreur export : ${apiError(err)}`, variant: 'error' })
     } finally {
       setExporting(false)
     }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { UploadPage } from '@/pages/UploadPage'
 import { EditorPage } from '@/pages/EditorPage'
+import { ToastProvider } from '@/components/ui/Toast'
 import type { Session } from '@/types'
 
 const SESSION_KEY = 'mapforge_session'
@@ -26,12 +27,18 @@ export default function App() {
   }
 
   if (!session) {
-    return <UploadPage onSession={handleSession} />
+    return (
+      <ToastProvider>
+        <UploadPage onSession={handleSession} />
+      </ToastProvider>
+    )
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      <EditorPage session={session} onClose={handleClose} />
-    </div>
+    <ToastProvider>
+      <div className="h-screen flex flex-col overflow-hidden">
+        <EditorPage session={session} onClose={handleClose} />
+      </div>
+    </ToastProvider>
   )
 }

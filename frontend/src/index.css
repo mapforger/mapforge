@@ -28,6 +28,12 @@
   ::-webkit-scrollbar-thumb:hover { background: #FF6B35; }
 }
 
+@keyframes toast-in {
+  from { transform: translateX(calc(100% + 1.25rem)); opacity: 0; }
+  to   { transform: translateX(0);                   opacity: 1; }
+}
+.toast-in { animation: toast-in 0.2s ease-out; }
+
 @layer components {
   .btn-primary {
     @apply bg-accent hover:bg-accent-hover text-white font-medium px-4 py-2 rounded
