@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<XDFFORMAT version="1.70">
+  <XDFHEADER>
+    <deftitle>Test EDC16 — Synthetic Definition</deftitle>
+    <description>Synthetic XDF for MapForge UI testing. Simulates a Bosch EDC16-style diesel ECU.</description>
+    <author>MapForge</author>
+    <BASEOFFSET offset="0" subtract="0"/>
+    <FILESIZE>65536</FILESIZE>
+    <CATEGORY index="0x0" name="Fuelling"/>
+    <CATEGORY index="0x1" name="Boost &amp; EGR"/>
+    <CATEGORY index="0x2" name="Injection Timing"/>
+    <CATEGORY index="0x4" name="Limiters"/>
+  </XDFHEADER>
+  <XDFTABLE uniqueid="0x1000" flags="0x0" categoryindex="0x0">
+    <title>Main Injection Quantity</title>
+    <description>Primary fuelling map — quantity vs RPM and load</description>
+    <XDFAXIS id="x">
+      <indexcount>16</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x100" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>16</indexcount>
+      <units>mg</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x160" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>256</indexcount>
+      <units>mm³/stroke</units>
+      <MATH equation="X*0.5"/>
+      <EMBEDDEDDATA mmedaddress="0x1000" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x1010" flags="0x0" categoryindex="0x0">
+    <title>Idle Injection Quantity</title>
+    <description>Fuelling map at idle conditions</description>
+    <XDFAXIS id="x">
+      <indexcount>8</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x120" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>8</indexcount>
+      <units>mg</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x180" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>64</indexcount>
+      <units>mm³/stroke</units>
+      <MATH equation="X*0.3"/>
+      <EMBEDDEDDATA mmedaddress="0x1200" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x1020" flags="0x0" categoryindex="0x0">
+    <title>Rail Pressure Map</title>
+    <description>Target common rail pressure vs RPM and load</description>
+    <XDFAXIS id="x">
+      <indexcount>16</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x100" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>16</indexcount>
+      <units>mg</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x160" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>256</indexcount>
+      <units>bar</units>
+      <MATH equation="X*2"/>
+      <EMBEDDEDDATA mmedaddress="0x2000" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x1030" flags="0x0" categoryindex="0x0">
+    <title>Smoke Limiter</title>
+    <description>Maximum fuelling limit to prevent smoke</description>
+    <XDFAXIS id="x">
+      <indexcount>16</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x100" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>8</indexcount>
+      <units>°C</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x1C0" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>128</indexcount>
+      <units>mm³/stroke</units>
+      <MATH equation="X*0.5"/>
+      <EMBEDDEDDATA mmedaddress="0x2800" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x1040" flags="0x0" categoryindex="0x0">
+    <title>Torque Limit Map</title>
+    <description>Maximum torque output limit</description>
+    <XDFAXIS id="x">
+      <indexcount>12</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x140" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>8</indexcount>
+      <units>mg</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x180" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>96</indexcount>
+      <units>Nm</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x2400" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x1050" flags="0x0" categoryindex="0x1">
+    <title>Boost Target Map</title>
+    <description>Target boost pressure vs RPM and load</description>
+    <XDFAXIS id="x">
+      <indexcount>12</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x140" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>8</indexcount>
+      <units>mg</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x180" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>96</indexcount>
+      <units>kPa</units>
+      <MATH equation="X*0.5"/>
+      <EMBEDDEDDATA mmedaddress="0x1800" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x1060" flags="0x0" categoryindex="0x1">
+    <title>EGR Map</title>
+    <description>Exhaust Gas Recirculation rate vs RPM and load</description>
+    <XDFAXIS id="x">
+      <indexcount>8</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x120" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>8</indexcount>
+      <units>mg</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x180" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>64</indexcount>
+      <units>%</units>
+      <MATH equation="X*0.4"/>
+      <EMBEDDEDDATA mmedaddress="0x1C00" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFTABLE uniqueid="0x1070" flags="0x0" categoryindex="0x2">
+    <title>Injection Start Angle</title>
+    <description>Start of injection timing vs RPM and load</description>
+    <XDFAXIS id="x">
+      <indexcount>16</indexcount>
+      <units>RPM</units>
+      <MATH equation="X*10"/>
+      <EMBEDDEDDATA mmedaddress="0x100" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="y">
+      <indexcount>16</indexcount>
+      <units>mg</units>
+      <MATH equation="X"/>
+      <EMBEDDEDDATA mmedaddress="0x160" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+    <XDFAXIS id="z">
+      <indexcount>256</indexcount>
+      <units>°BTDC</units>
+      <MATH equation="X*0.1"/>
+      <EMBEDDEDDATA mmedaddress="0x1400" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+    </XDFAXIS>
+  </XDFTABLE>
+  <XDFCONSTANT uniqueid="0x1080" categoryindex="0x4">
+    <title>Rev Limiter</title>
+    <description>Maximum engine RPM cut-off</description>
+    <units>RPM</units>
+    <MATH equation="X*10"/>
+    <EMBEDDEDDATA mmedaddress="0x300" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+  </XDFCONSTANT>
+  <XDFCONSTANT uniqueid="0x1090" categoryindex="0x4">
+    <title>Idle Target RPM</title>
+    <description>Target RPM at idle</description>
+    <units>RPM</units>
+    <MATH equation="X*10"/>
+    <EMBEDDEDDATA mmedaddress="0x302" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+  </XDFCONSTANT>
+  <XDFCONSTANT uniqueid="0x10A0" categoryindex="0x1">
+    <title>Maximum Boost</title>
+    <description>Absolute boost pressure limit</description>
+    <units>kPa</units>
+    <MATH equation="X"/>
+    <EMBEDDEDDATA mmedaddress="0x304" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+  </XDFCONSTANT>
+  <XDFCONSTANT uniqueid="0x10B0" categoryindex="0x1">
+    <title>Idle Rail Pressure</title>
+    <description>Rail pressure target at idle</description>
+    <units>bar</units>
+    <MATH equation="X*2"/>
+    <EMBEDDEDDATA mmedaddress="0x306" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+  </XDFCONSTANT>
+  <XDFCONSTANT uniqueid="0x10C0" categoryindex="0x0">
+    <title>Smoke Limit Scalar</title>
+    <description>Global smoke limit scalar</description>
+    <units>mm³</units>
+    <MATH equation="X"/>
+    <EMBEDDEDDATA mmedaddress="0x308" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+  </XDFCONSTANT>
+  <XDFCONSTANT uniqueid="0x10D0" categoryindex="0x1">
+    <title>EGR Temperature Limit</title>
+    <description>Max exhaust temp before EGR closes</description>
+    <units>°C</units>
+    <MATH equation="X+20"/>
+    <EMBEDDEDDATA mmedaddress="0x30A" mmedelementsize="2" mmedmajorstridebits="0" mmedminorstridebits="0"/>
+  </XDFCONSTANT>
+  <XDFCHECKSUM uniqueid="0xC001" flags="0x0">
+    <title>ROM Checksum</title>
+    <CHECKSUM algorithm="0x2" checksumlength="2">
+      <RANGEADDRESS startaddress="0x0000" endaddress="0xFF00"/>
+      <STORELOCATION address="0xFF00" length="2"/>
+    </CHECKSUM>
+  </XDFCHECKSUM>
+</XDFFORMAT>

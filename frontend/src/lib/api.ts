@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Session, TableMeta, TableData, Constant, DiffEntry, ChecksumStatus } from '@/types'
+import type { Session, TableMeta, TableData, Constant, DiffEntry, ChecksumStatus, CatalogEntry } from '@/types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -57,3 +57,24 @@ export const exportBin = (fileId: string): string => `/api/export/${fileId}`
 export const deleteSession = async (fileId: string): Promise<void> => {
   await api.delete(`/session/${fileId}`)
 }
+
+export const searchCatalog = async (params: {
+  q?: string
+  manufacturer?: string
+  ecu?: string
+  year?: number
+}): Promise<CatalogEntry[]> => {
+  const { data } = await api.get('/catalog/search', { params })
+  return data.entries
+}
+
+export const createSessionFromCatalog = async (
+  catalogId: string,
+  binFile: File,
+): Promise<Session> => {
+  const form = new FormData()
+  form.append('bin_file', binFile)
+  const { data } = await api.post(`/session/create_from_catalog?catalog_id=${catalogId}`, form)
+  return data
+}
+

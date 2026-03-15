@@ -14,7 +14,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFixing }: TopbarProps) {
-  const [exporting, setExporting] = useState(false)
+  const [exporting, setExporting]       = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const { toast } = useToast()

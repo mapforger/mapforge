@@ -1,0 +1,23 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "edc16_synthetic_test",
+      "title": "Bosch EDC16 — Synthetic Test Definition",
+      "car_manufacturer": "Synthetic",
+      "car_models": ["Test ECU"],
+      "year_from": null,
+      "year_to": null,
+      "engine": "1.6 JTDm",
+      "power_hp": 105,
+      "ecu": "Bosch EDC16",
+      "firmware_version": "synthetic-v1",
+      "bin_size": 65536,
+      "contributor": "official",
+      "trust_level": "verified",
+      "notes": "Synthetic XDF for MapForge UI testing. Not for real ECU use.",
+      "filename": "edc16_synthetic_test.xdf",
+      "sha256": "b1baf827cbca63d874824517d50134c9e1a79bda1ceb2cde6a2c0f917d47bed7"
+    }
+  ]
+}

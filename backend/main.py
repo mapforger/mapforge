@@ -31,8 +31,14 @@ from mapforge.xdf_parser import parse_xdf, XDFParseError
 from mapforge.bin_reader import BinReadError, read_table, read_constant
 from mapforge.bin_writer import BinEditor, BinWriteError
 from mapforge.checksum import ChecksumBlock, verify_all, correct_all
+from mapforge.catalog import init_db, get_session as get_db_session, get_xdf_path, XDFEntry
 
-app = FastAPI(title="MapForge API", version="0.1.0")
+app = FastAPI(title="MapForge API", version="0.2.0")
+
+
+@app.on_event("startup")
+def startup():
+    init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -345,6 +351,124 @@ def checksum_correct(file_id: str, body: ChecksumRequest) -> dict:
     # Update editor buffer
     editor._buf = buf
     return {"results": results}
+
+
+# ---------------------------------------------------------------------------
+# Catalog routes
+# ---------------------------------------------------------------------------
+
+@app.get("/api/catalog/search")
+def catalog_search(
+    q:            str | None = None,
+    manufacturer: str | None = None,
+    ecu:          str | None = None,
+    year:         int | None = None,
+) -> dict:
+    """
+    Search the XDF catalog.
+    Supports free-text (q) and filters: manufacturer, ecu, year.
+    """
+    with get_db_session() as session:
+        query = session.query(XDFEntry)
+
+        if manufacturer:
+            query = query.filter(XDFEntry.car_manufacturer.ilike(f"%{manufacturer}%"))
+        if ecu:
+            query = query.filter(XDFEntry.ecu.ilike(f"%{ecu}%"))
+        if year:
+            query = query.filter(
+                (XDFEntry.year_from <= year) | (XDFEntry.year_from == None),  # noqa: E711
+                (XDFEntry.year_to >= year)   | (XDFEntry.year_to == None),    # noqa: E711
+            )
+        if q:
+            like = f"%{q}%"
+            query = query.filter(
+                XDFEntry.title.ilike(like)
+                | XDFEntry.car_manufacturer.ilike(like)
+                | XDFEntry.car_models.ilike(like)
+                | XDFEntry.ecu.ilike(like)
+                | XDFEntry.engine.ilike(like)
+            )
+
+        entries = query.order_by(XDFEntry.use_count.desc(), XDFEntry.title).all()
+        return {"entries": [e.to_dict() for e in entries], "count": len(entries)}
+
+
+@app.get("/api/catalog/{entry_id}")
+def catalog_get(entry_id: str) -> dict:
+    with get_db_session() as session:
+        entry = session.get(XDFEntry, entry_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail="Catalog entry not found")
+        return entry.to_dict()
+
+
+@app.post("/api/session/create_from_catalog")
+async def create_session_from_catalog(
+    catalog_id: str,
+    bin_file: UploadFile = File(...),
+) -> dict:
+    """
+    Create an editing session using a catalog XDF + an uploaded BIN.
+    Increments the use_count for the catalog entry.
+    """
+    with get_db_session() as session:
+        entry = session.get(XDFEntry, catalog_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail="Catalog entry not found")
+
+        xdf_path = get_xdf_path(entry.filename)
+        if not xdf_path.exists():
+            raise HTTPException(status_code=500, detail="XDF file missing from catalog")
+
+        # Increment use count
+        entry.use_count += 1
+        session.commit()
+
+        xdf_filename = entry.filename
+        xdf_title = entry.title
+
+    bin_data = await bin_file.read()
+
+    try:
+        xdf = parse_xdf(xdf_path)
+    except XDFParseError as e:
+        raise HTTPException(status_code=400, detail=f"XDF parse error: {e}")
+
+    editor = BinEditor(bin_data)
+    checksum_blocks = [
+        {
+            "data_start":      b.data_start,
+            "data_end":        b.data_end,
+            "store_address":   b.store_address,
+            "store_size":      b.store_size,
+            "algorithm":       b.algorithm,
+            "store_lsb_first": b.lsb_first,
+            "label":           b.title,
+        }
+        for b in xdf.checksums
+    ]
+
+    file_id = str(uuid.uuid4())
+    _sessions[file_id] = {
+        "xdf":              xdf,
+        "editor":           editor,
+        "original_data":    bytes(bin_data),
+        "checksum_blocks":  checksum_blocks,
+        "bin_name":         bin_file.filename or "file.bin",
+        "xdf_name":         xdf_filename,
+    }
+
+    return {
+        "file_id":         file_id,
+        "bin_name":        bin_file.filename,
+        "xdf_name":        xdf_filename,
+        "bin_size":        len(bin_data),
+        "xdf_title":       xdf_title,
+        "table_count":     len(xdf.tables),
+        "constant_count":  len(xdf.constants),
+    }
+
 
 
 @app.delete("/api/session/{file_id}")

@@ -70,6 +70,21 @@ export const en = {
   uploadError:      'Failed to load files. Check your XDF and BIN.',
   // Surface 3D
   surfaceHint:      'drag to rotate · scroll to zoom',
+  // Upload tabs
+  tabLibrary:       'Browse library',
+  tabLocal:         'Local files',
+  // Catalog browser
+  catalogSearch:    'Search by car, ECU, engine…',
+  catalogEmpty:     'No XDF found',
+  catalogEmptyDesc: 'Try different search terms, or use a local XDF file.',
+  catalogLoading:   'Loading catalog…',
+  trustVerified:    'Verified',
+  trustCommunity:   'Community',
+  trustUnverified:  'Unverified',
+  usedBy:           (n: number) => `${n} user${n !== 1 ? 's' : ''}`,
+  selectThisXdf:    'Use this XDF',
+  binRequired:      'Drop your .bin file here',
+  backToLibrary:    '← Back',
 }
 
 export const fr: typeof en = {
@@ -135,6 +150,21 @@ export const fr: typeof en = {
   uploadError:      'Échec du chargement. Vérifiez votre XDF et BIN.',
   // Surface 3D
   surfaceHint:      'glisser pour pivoter · molette pour zoomer',
+  // Upload tabs
+  tabLibrary:       'Parcourir la bibliothèque',
+  tabLocal:         'Fichier local',
+  // Catalog browser
+  catalogSearch:    'Rechercher par voiture, ECU, moteur…',
+  catalogEmpty:     'Aucun XDF trouvé',
+  catalogEmptyDesc: 'Essayez d\'autres termes, ou utilisez un fichier XDF local.',
+  catalogLoading:   'Chargement du catalogue…',
+  trustVerified:    'Vérifié',
+  trustCommunity:   'Communauté',
+  trustUnverified:  'Non vérifié',
+  usedBy:           (n: number) => `${n} utilisateur${n !== 1 ? 's' : ''}`,
+  selectThisXdf:    'Utiliser ce XDF',
+  binRequired:      'Déposez votre fichier .bin ici',
+  backToLibrary:    '← Retour',
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────

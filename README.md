@@ -12,6 +12,7 @@ A modern, open-source ECU map editor for TunerPro XDF-based calibration files.
 
 MapForge loads an ECU binary (`.bin`) paired with a TunerPro RT XDF definition file, lets you view and edit all calibration tables and constants, then exports the modified binary — with checksum validation built in.
 
+- **XDF catalog** — browse the built-in library of community XDF definitions; search by manufacturer, ECU, engine or year; drop your `.bin` and open directly without hunting for the right XDF
 - **2D table editor** — heatmap-coloured cells, keyboard navigation, undo/redo
 - **3D surface view** — interactive WebGL surface with wireframe overlay and cage grid
 - **Constants panel** — inline editing for all scalar values defined in the XDF
@@ -25,8 +26,8 @@ MapForge loads an ECU binary (`.bin`) paired with a TunerPro RT XDF definition f
 
 | Layer    | Technology                                      |
 |----------|-------------------------------------------------|
-| Backend  | Python · FastAPI · simpleeval · lxml            |
-| Frontend | React 18 · TypeScript · Vite · Tailwind CSS     |
+| Backend  | Python · FastAPI · SQLAlchemy · simpleeval · lxml |
+| Frontend | React 18 · TypeScript · Vite · Tailwind CSS      |
 | 3D       | Three.js · @react-three/fiber · @react-three/drei |
 
 ---
