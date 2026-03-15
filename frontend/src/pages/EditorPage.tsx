@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 import { TableEditor } from '@/components/ui/TableEditor'
-import { listTables, getTable, writeTable, getDiff, listConstants, writeConstant, deleteSession } from '@/lib/api'
+import { listTables, getTable, writeTable, getDiff, listConstants, writeConstant, deleteSession, getChecksumStatus, fixChecksums } from '@/lib/api'
 import type { Session, DiffEntry } from '@/types'
 import { FileQuestion, SlidersHorizontal, GitCompare, Search, ArrowUpDown, Check, X } from 'lucide-react'
 
@@ -40,11 +40,24 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
     queryFn:  () => getDiff(session.file_id),
   })
 
+  const { data: checksumStatus } = useQuery({
+    queryKey: ['checksum', session.file_id],
+    queryFn:  () => getChecksumStatus(session.file_id),
+  })
+
   const saveMutation = useMutation({
     mutationFn: (values: number[][]) => writeTable(session.file_id, selectedTableId!, values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['table', session.file_id, selectedTableId] })
       queryClient.invalidateQueries({ queryKey: ['diff', session.file_id] })
+      queryClient.invalidateQueries({ queryKey: ['checksum', session.file_id] })
+    },
+  })
+
+  const fixMutation = useMutation({
+    mutationFn: () => fixChecksums(session.file_id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checksum', session.file_id] })
     },
   })
 
@@ -74,7 +87,13 @@ export function EditorPage({ session, onClose }: EditorPageProps) {
 
   return (
     <div className="h-full flex flex-col">
-      <Topbar session={session} onClose={handleClose} />
+      <Topbar
+        session={session}
+        onClose={handleClose}
+        checksumStatus={checksumStatus}
+        onFixChecksums={() => fixMutation.mutate()}
+        isFixing={fixMutation.isPending}
+      />
       <div className="flex flex-1 min-h-0">
         <Sidebar
           tables={tables}

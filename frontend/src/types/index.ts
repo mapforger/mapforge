@@ -45,6 +45,22 @@ export interface Constant {
   error?: string
 }
 
+export interface ChecksumBlockResult {
+  label: string
+  algorithm: string
+  store_address: string
+  valid: boolean
+  stored?: string
+  computed?: string
+  error?: string
+}
+
+export interface ChecksumStatus {
+  has_blocks: boolean
+  original: ChecksumBlockResult[]
+  current: ChecksumBlockResult[]
+}
+
 export interface DiffEntry {
   address: string
   original_hex: string

@@ -1,15 +1,19 @@
-import { Download, Trash2, Zap } from 'lucide-react'
-import type { Session } from '@/types'
+import { Download, Trash2, Zap, ShieldCheck, ShieldAlert, Shield, X, Wrench } from 'lucide-react'
+import type { Session, ChecksumStatus, ChecksumBlockResult } from '@/types'
 import { exportBin } from '@/lib/api'
 import { useState } from 'react'
 
 interface TopbarProps {
   session: Session
   onClose: () => void
+  checksumStatus?: ChecksumStatus
+  onFixChecksums?: () => void
+  isFixing?: boolean
 }
 
-export function Topbar({ session, onClose }: TopbarProps) {
+export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFixing }: TopbarProps) {
   const [exporting, setExporting] = useState(false)
+  const [checksumOpen, setChecksumOpen] = useState(false)
   const sizeKB = (session.bin_size / 1024).toFixed(1)
   const stem = session.bin_name.replace(/\.[^.]+$/, '')
   const suggestedName = `${stem}_modified.bin`
@@ -19,7 +23,6 @@ export function Topbar({ session, onClose }: TopbarProps) {
     try {
       const url = exportBin(session.file_id)
 
-      // Use File System Access API if available (Chrome/Edge) — lets user choose destination
       if ('showSaveFilePicker' in window) {
         try {
           const handle = await (window as any).showSaveFilePicker({
@@ -33,13 +36,10 @@ export function Topbar({ session, onClose }: TopbarProps) {
           await writable.close()
           return
         } catch (e: any) {
-          // User cancelled the picker — don't fallback
           if (e?.name === 'AbortError') return
-          // API not supported or other error — fall through to classic download
         }
       }
 
-      // Classic download fallback (Firefox, Safari)
       const response = await fetch(url)
       const blob = await response.blob()
       const a = document.createElement('a')
@@ -53,7 +53,7 @@ export function Topbar({ session, onClose }: TopbarProps) {
   }
 
   return (
-    <header className="h-12 bg-bg-surface border-b border-bg-border flex items-center px-4 gap-4 flex-shrink-0">
+    <header className="h-12 bg-bg-surface border-b border-bg-border flex items-center px-4 gap-4 flex-shrink-0 relative">
       <div className="flex items-center gap-2 mr-4">
         <Zap size={18} className="text-accent" fill="currentColor" />
         <span className="font-semibold text-text-primary tracking-tight">MapForge</span>
@@ -68,6 +68,17 @@ export function Topbar({ session, onClose }: TopbarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Checksum badge */}
+        {checksumStatus && (
+          <ChecksumBadge
+            status={checksumStatus}
+            open={checksumOpen}
+            onToggle={() => setChecksumOpen(o => !o)}
+            onFix={onFixChecksums}
+            isFixing={!!isFixing}
+          />
+        )}
+
         <button onClick={handleExport} disabled={exporting}
           className="btn-primary flex items-center gap-2 text-sm py-1.5 disabled:opacity-60">
           {exporting
@@ -80,6 +91,175 @@ export function Topbar({ session, onClose }: TopbarProps) {
           Close
         </button>
       </div>
+
+      {/* Checksum detail panel */}
+      {checksumOpen && checksumStatus && (
+        <ChecksumPanel
+          status={checksumStatus}
+          onClose={() => setChecksumOpen(false)}
+          onFix={onFixChecksums}
+          isFixing={!!isFixing}
+        />
+      )}
     </header>
+  )
+}
+
+// ── Checksum badge ────────────────────────────────────────────────────────────
+
+function checksumSummary(results: ChecksumBlockResult[]) {
+  const invalid = results.filter(r => !r.valid).length
+  return { invalid, total: results.length }
+}
+
+function ChecksumBadge({ status, open, onToggle, onFix, isFixing }: {
+  status: ChecksumStatus
+  open: boolean
+  onToggle: () => void
+  onFix?: () => void
+  isFixing: boolean
+}) {
+  if (!status.has_blocks) {
+    return (
+      <button onClick={onToggle}
+        title="Checksums — no blocks defined in XDF"
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors
+          ${open ? 'bg-bg-elevated text-text-secondary' : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated'}`}>
+        <Shield size={14} />
+        <span className="text-xs font-mono">—</span>
+      </button>
+    )
+  }
+
+  const orig = checksumSummary(status.original)
+  const curr = checksumSummary(status.current)
+  const allOk = curr.invalid === 0
+
+  return (
+    <button onClick={onToggle}
+      title={allOk ? 'Checksums valides' : `${curr.invalid} checksum(s) invalide(s)`}
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-sm font-medium transition-colors
+        ${open
+          ? 'bg-bg-elevated'
+          : allOk
+            ? 'text-emerald-400 hover:bg-bg-elevated'
+            : 'text-amber-400 hover:bg-bg-elevated'}`}>
+      {allOk
+        ? <ShieldCheck size={14} className="text-emerald-400" />
+        : <ShieldAlert size={14} className="text-amber-400" />}
+      <span className="text-xs font-mono">
+        {allOk ? 'OK' : `${curr.invalid}/${curr.total}`}
+      </span>
+    </button>
+  )
+}
+
+// ── Checksum detail panel ────────────────────────────────────────────────────
+
+function ChecksumPanel({ status, onClose, onFix, isFixing }: {
+  status: ChecksumStatus
+  onClose: () => void
+  onFix?: () => void
+  isFixing: boolean
+}) {
+  const currentInvalid = status.current.filter(r => !r.valid).length
+  const origInvalid = status.original.filter(r => !r.valid).length
+
+  return (
+    <div className="absolute top-full right-0 mt-1 w-96 bg-bg-surface border border-bg-border rounded-lg shadow-xl z-50 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-bg-border">
+        <span className="font-semibold text-text-primary text-sm">Checksums</span>
+        <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
+          <X size={14} />
+        </button>
+      </div>
+
+      {!status.has_blocks ? (
+        <div className="px-4 py-6 text-center">
+          <Shield size={32} className="text-text-muted/30 mx-auto mb-2" />
+          <p className="text-text-secondary text-sm font-medium">Aucun bloc défini</p>
+          <p className="text-text-muted text-xs mt-1">
+            Ce XDF ne contient pas de définitions XDFCHECKSUM.
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-bg-border">
+          {/* Original status */}
+          <StatusSection
+            label="Fichier original"
+            results={status.original}
+            invalid={origInvalid}
+            muted
+          />
+
+          {/* Current status */}
+          <StatusSection
+            label="État actuel"
+            results={status.current}
+            invalid={currentInvalid}
+          />
+
+          {/* Fix button */}
+          {currentInvalid > 0 && onFix && (
+            <div className="px-4 py-3">
+              <button
+                onClick={onFix}
+                disabled={isFixing}
+                className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-2 disabled:opacity-50">
+                {isFixing
+                  ? <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                  : <Wrench size={14} />}
+                {isFixing ? 'Correction…' : `Corriger ${currentInvalid} checksum${currentInvalid > 1 ? 's' : ''}`}
+              </button>
+            </div>
+          )}
+          {currentInvalid === 0 && (
+            <div className="px-4 py-3 text-center text-xs text-emerald-400 font-medium">
+              ✓ Tous les checksums sont valides
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatusSection({ label, results, invalid, muted }: {
+  label: string
+  results: ChecksumBlockResult[]
+  invalid: number
+  muted?: boolean
+}) {
+  return (
+    <div className={`px-4 py-3 space-y-2 ${muted ? 'opacity-70' : ''}`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">{label}</span>
+        {invalid === 0
+          ? <span className="text-xs text-emerald-400 font-medium">✓ Valide</span>
+          : <span className="text-xs text-amber-400 font-medium">⚠ {invalid} invalide{invalid > 1 ? 's' : ''}</span>}
+      </div>
+      {results.map((r, i) => (
+        <div key={i} className="flex items-start gap-2 text-xs font-mono">
+          <span className={`mt-0.5 flex-shrink-0 ${r.valid ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {r.valid ? '✓' : '✗'}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-text-primary truncate">{r.label}</p>
+            <p className="text-text-muted text-[10px] font-mono">
+              {r.algorithm}
+              {r.error && <span className="text-error ml-1">{r.error}</span>}
+              {!r.error && !r.valid && r.stored && r.computed && (
+                <span className="ml-1">
+                  stocké <span className="text-amber-400">{r.stored}</span>
+                  {' → '} attendu <span className="text-emerald-400">{r.computed}</span>
+                </span>
+              )}
+            </p>
+          </div>
+          <span className="text-text-muted/60 flex-shrink-0">{r.store_address}</span>
+        </div>
+      ))}
+    </div>
   )
 }

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Session, TableMeta, TableData, Constant, DiffEntry } from '@/types'
+import type { Session, TableMeta, TableData, Constant, DiffEntry, ChecksumStatus } from '@/types'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -41,6 +41,15 @@ export const writeConstant = async (fileId: string, constantId: string, value: n
 export const getDiff = async (fileId: string): Promise<DiffEntry[]> => {
   const { data } = await api.get(`/diff/${fileId}`)
   return data.diff
+}
+
+export const getChecksumStatus = async (fileId: string): Promise<ChecksumStatus> => {
+  const { data } = await api.get(`/checksum/status/${fileId}`)
+  return data
+}
+
+export const fixChecksums = async (fileId: string): Promise<void> => {
+  await api.post(`/checksum/fix/${fileId}`)
 }
 
 export const exportBin = (fileId: string): string => `/api/export/${fileId}`

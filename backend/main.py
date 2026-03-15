@@ -28,7 +28,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from mapforge.xdf_parser import parse_xdf, XDFParseError
-from mapforge.bin_reader import BinFile, BinReadError, read_table, read_constant
+from mapforge.bin_reader import BinReadError, read_table, read_constant
 from mapforge.bin_writer import BinEditor, BinWriteError
 from mapforge.checksum import ChecksumBlock, verify_all, correct_all
 
@@ -89,14 +89,27 @@ async def create_session(
         tmp_path.unlink(missing_ok=True)
 
     editor = BinEditor(bin_data)
-    bin_file_obj = BinFile.__new__(BinFile)
-    bin_file_obj._data = bytearray(bin_data)
-    bin_file_obj.path = Path(bin_file.filename or "unknown.bin")
+
+    # Convert XDF checksum blocks to the dict format used by checksum endpoints
+    checksum_blocks = [
+        {
+            "data_start": b.data_start,
+            "data_end": b.data_end,
+            "store_address": b.store_address,
+            "store_size": b.store_size,
+            "algorithm": b.algorithm,
+            "store_lsb_first": b.lsb_first,
+            "label": b.title,
+        }
+        for b in xdf.checksums
+    ]
 
     file_id = str(uuid.uuid4())
     _sessions[file_id] = {
         "xdf": xdf,
         "editor": editor,
+        "original_data": bytes(bin_data),   # kept for original-vs-current comparison
+        "checksum_blocks": checksum_blocks,
         "bin_name": bin_file.filename or "file.bin",
         "xdf_name": xdf_file.filename or "file.xdf",
     }
@@ -226,6 +239,50 @@ def get_diff(file_id: str) -> dict:
     session = _get_session(file_id)
     editor: BinEditor = session["editor"]
     return {"diff": editor.get_diff(), "count": len(editor.modifications)}
+
+
+@app.get("/api/checksum/status/{file_id}")
+def checksum_status(file_id: str) -> dict:
+    """
+    Return checksum verification for both the original binary and the current
+    (potentially modified) binary, using blocks defined in the XDF.
+    If the XDF has no XDFCHECKSUM blocks, returns has_blocks=False.
+    """
+    session = _get_session(file_id)
+    editor: BinEditor = session["editor"]
+    blocks_raw = session.get("checksum_blocks", [])
+
+    if not blocks_raw:
+        return {"has_blocks": False, "original": [], "current": []}
+
+    blocks = _parse_checksum_blocks(blocks_raw)
+    original_data = session.get("original_data", editor.data)
+
+    return {
+        "has_blocks": True,
+        "original": verify_all(original_data, blocks),
+        "current": verify_all(editor.data, blocks),
+    }
+
+
+@app.post("/api/checksum/fix/{file_id}")
+def checksum_fix(file_id: str) -> dict:
+    """
+    Recompute and write all checksums using the blocks defined in the XDF.
+    No request body needed — uses the session's stored block definitions.
+    """
+    session = _get_session(file_id)
+    editor: BinEditor = session["editor"]
+    blocks_raw = session.get("checksum_blocks", [])
+
+    if not blocks_raw:
+        raise HTTPException(status_code=400, detail="No checksum blocks defined in this XDF")
+
+    blocks = _parse_checksum_blocks(blocks_raw)
+    buf = bytearray(editor.data)
+    results = correct_all(buf, blocks)
+    editor._buf = buf
+    return {"results": results}
 
 
 @app.get("/api/export/{file_id}")

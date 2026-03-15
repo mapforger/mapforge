@@ -85,10 +85,24 @@ class XDFHeader:
 
 
 @dataclass
+class XDFChecksumBlock:
+    """Checksum block parsed from an XDFCHECKSUM element."""
+    unique_id: str
+    title: str
+    algorithm: str       # Named: sum8, sum16_be, crc16_ccitt, crc32, bosch_edc16_sum
+    data_start: int      # Absolute address — start of region to checksum
+    data_end: int        # Absolute address — end of region (exclusive)
+    store_address: int   # Where the checksum bytes are stored in the binary
+    store_size: int      # 1, 2, or 4 bytes
+    lsb_first: bool = False
+
+
+@dataclass
 class XDFFile:
     header: XDFHeader
     tables: list[XDFTable] = field(default_factory=list)
     constants: list[XDFConstant] = field(default_factory=list)
+    checksums: list[XDFChecksumBlock] = field(default_factory=list)
 
     def get_table(self, unique_id: str) -> Optional[XDFTable]:
         for t in self.tables:
@@ -250,6 +264,128 @@ def _parse_constant(elem: ET.Element, base_offset: int, categories: dict[str, st
     )
 
 
+# TunerPro numeric algorithm codes → our named algorithms (best-effort mapping)
+_ALGO_CODES: dict[int, str] = {
+    0x1: "sum8",
+    0x2: "sum16_be",
+    0x3: "sum16_be",    # most common Bosch-style word sum
+    0x5: "crc16_ccitt",
+    0x6: "crc32",
+    0x7: "bosch_edc16_sum",
+}
+
+
+def _map_algorithm(value: str) -> str:
+    """Map a TunerPro algorithm code (numeric or string) to our named algorithm."""
+    v = value.strip().lower()
+    try:
+        code = int(v, 0)
+        return _ALGO_CODES.get(code, "sum16_be")
+    except ValueError:
+        pass
+    if "crc32" in v:
+        return "crc32"
+    if "crc16" in v:
+        return "crc16_ccitt"
+    if "bosch" in v or "edc" in v:
+        return "bosch_edc16_sum"
+    if "sum16" in v:
+        return "sum16_be"
+    if "sum8" in v:
+        return "sum8"
+    return "sum16_be"  # safe default
+
+
+def _parse_checksum_blocks(root: ET.Element, base_offset: int) -> list[XDFChecksumBlock]:
+    """
+    Parse XDFCHECKSUM elements from the XDF root.
+    TunerPro uses several slightly different layouts across versions; we try
+    multiple attribute patterns and silently skip blocks we cannot parse.
+
+    Most common format:
+        <XDFCHECKSUM uniqueid="0x1">
+          <title>Checksum</title>
+          <CHECKSUM algorithm="0x3" checksumlength="2">
+            <RANGEADDRESS startaddress="0x2000" endaddress="0x7FFF"/>
+            <STORELOCATION address="0x1FFC" length="2"/>
+          </CHECKSUM>
+        </XDFCHECKSUM>
+    """
+    blocks: list[XDFChecksumBlock] = []
+
+    for elem in root.findall("XDFCHECKSUM"):
+        try:
+            uid = elem.attrib.get("uniqueid", "0x0")
+            title = _text(elem, "title", f"Checksum {uid}")
+
+            data_start = data_end = store_address = 0
+            store_size = 2
+            algorithm = "sum16_be"
+            lsb_first = False
+
+            checksum_el = elem.find("CHECKSUM")
+            if checksum_el is not None:
+                algorithm = _map_algorithm(checksum_el.attrib.get("algorithm", "0x3"))
+                clen = checksum_el.attrib.get("checksumlength", "2")
+                store_size = _parse_int(clen)
+
+                # RANGEADDRESS — supports start/end or startaddress/endaddress or address+length
+                range_el = checksum_el.find("RANGEADDRESS")
+                if range_el is not None:
+                    attrib = range_el.attrib
+                    if "startaddress" in attrib and "endaddress" in attrib:
+                        data_start = _parse_int(attrib["startaddress"]) + base_offset
+                        data_end   = _parse_int(attrib["endaddress"])   + base_offset
+                    elif "start" in attrib and "end" in attrib:
+                        data_start = _parse_int(attrib["start"]) + base_offset
+                        data_end   = _parse_int(attrib["end"])   + base_offset
+                    elif "address" in attrib and "length" in attrib:
+                        data_start = _parse_int(attrib["address"]) + base_offset
+                        data_end   = data_start + _parse_int(attrib["length"])
+
+                store_el = checksum_el.find("STORELOCATION")
+                if store_el is not None:
+                    store_address = _parse_int(store_el.attrib.get("address", "0x0")) + base_offset
+                    if "length" in store_el.attrib:
+                        store_size = _parse_int(store_el.attrib["length"])
+                    # addrtype 0 = little-endian store, 1 = big-endian (default)
+                    lsb_first = store_el.attrib.get("addrtype", "1") == "0"
+            else:
+                # Fallback: some XDFs put everything on XDFCHECKSUM directly
+                algorithm = _map_algorithm(elem.attrib.get("algorithm", "0x3"))
+                for attr_start in ("start", "startaddress", "rangestart"):
+                    if attr_start in elem.attrib:
+                        data_start = _parse_int(elem.attrib[attr_start]) + base_offset
+                        break
+                for attr_end in ("end", "endaddress", "rangeend"):
+                    if attr_end in elem.attrib:
+                        data_end = _parse_int(elem.attrib[attr_end]) + base_offset
+                        break
+                for attr_store in ("store", "storeaddress", "checkaddress"):
+                    if attr_store in elem.attrib:
+                        store_address = _parse_int(elem.attrib[attr_store]) + base_offset
+                        break
+                store_size = _parse_int(elem.attrib.get("size", elem.attrib.get("storesize", "2")))
+
+            if data_start == 0 and data_end == 0:
+                continue  # could not determine a valid range — skip
+
+            blocks.append(XDFChecksumBlock(
+                unique_id=uid,
+                title=title,
+                algorithm=algorithm,
+                data_start=data_start,
+                data_end=data_end,
+                store_address=store_address,
+                store_size=store_size,
+                lsb_first=lsb_first,
+            ))
+        except Exception:
+            continue  # skip any block we cannot parse cleanly
+
+    return blocks
+
+
 def parse_xdf(path: str | Path) -> XDFFile:
     """Parse an XDF file and return a structured XDFFile object."""
     path = Path(path)
@@ -315,4 +451,5 @@ def parse_xdf(path: str | Path) -> XDFFile:
             uid = const_elem.attrib.get("uniqueid", "?")
             raise XDFParseError(f"Error parsing constant {uid}: {e}") from e
 
-    return XDFFile(header=header, tables=tables, constants=constants)
+    checksums = _parse_checksum_blocks(root, base_offset)
+    return XDFFile(header=header, tables=tables, constants=constants, checksums=checksums)
