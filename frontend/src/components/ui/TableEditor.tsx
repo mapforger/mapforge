@@ -34,10 +34,12 @@ function heat(val: number, min: number, max: number) {
 const fmtEdit = (v: number) => String(parseFloat(v.toPrecision(8)))
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function TableEditor({ table, onSave, isSaving }: {
+export function TableEditor({ table, onSave, isSaving, highlightCell, modifiedCells }: {
   table: TableData
   onSave: (v: number[][]) => void
   isSaving: boolean
+  highlightCell?: [number, number] | null
+  modifiedCells?: Set<string>
 }) {
   const rows = table.z_values.length
   const cols = table.z_values[0]?.length ?? 0
@@ -53,6 +55,14 @@ export function TableEditor({ table, onSave, isSaving }: {
   const [editPos, setEditPos] = useState<[number, number] | null>(null)
   const [editRaw, setEditRaw] = useState('')
   const [view, setView] = useState<'2d' | '3d'>('2d')
+
+  // Scroll to highlighted cell when navigating from diff
+  useEffect(() => {
+    if (!highlightCell) return
+    const [r, c] = highlightCell
+    const cell = document.querySelector(`[data-cell="${r}-${c}"]`)
+    cell?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+  }, [highlightCell])
 
   // Refs for use in callbacks without stale closures
   const valuesRef   = useRef(values);   valuesRef.current = values
@@ -120,11 +130,17 @@ export function TableEditor({ table, onSave, isSaving }: {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey
-      if (!ctrl) return
       const key = e.key.toLowerCase()
-      if (key === 's') { e.preventDefault(); save() }
-      else if (!e.shiftKey && key === 'z') { e.preventDefault(); editPosRef.current = null; setEditPos(null); dispatchRef.current({ type: 'undo' }) }
-      else if ((e.shiftKey && key === 'z') || key === 'y') { e.preventDefault(); dispatchRef.current({ type: 'redo' }) }
+      const inInput = (e.target as HTMLElement).tagName === 'INPUT'
+
+      if (ctrl) {
+        if (key === 's') { e.preventDefault(); save() }
+        else if (!e.shiftKey && key === 'z') { e.preventDefault(); editPosRef.current = null; setEditPos(null); dispatchRef.current({ type: 'undo' }) }
+        else if ((e.shiftKey && key === 'z') || key === 'y') { e.preventDefault(); dispatchRef.current({ type: 'redo' }) }
+      } else if (!inInput && key === 'v') {
+        e.preventDefault()
+        setView(v => v === '2d' ? '3d' : '2d')
+      }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
@@ -216,10 +232,15 @@ export function TableEditor({ table, onSave, isSaving }: {
                     {yVals[ri] !== undefined ? (yVals[ri] % 1 === 0 ? yVals[ri].toFixed(0) : yVals[ri].toFixed(1)) : ''}
                   </td>
                   {row.map((val, ci) => {
-                    const isEditing = editPos?.[0] === ri && editPos?.[1] === ci
+                    const isEditing   = editPos?.[0] === ri && editPos?.[1] === ci
+                    const isHighlight = highlightCell?.[0] === ri && highlightCell?.[1] === ci
+                    const isModified  = modifiedCells?.has(`${ri}-${ci}`)
                     return (
-                      <td key={ci} style={{ backgroundColor: heat(val, min, max) }}
-                        className="border border-bg-border/40 p-0 text-right"
+                      <td key={ci}
+                        data-cell={`${ri}-${ci}`}
+                        style={{ backgroundColor: heat(val, min, max) }}
+                        className={`border p-0 text-right transition-all
+                          ${isHighlight ? 'border-accent ring-1 ring-accent' : isModified ? 'border-warning/60' : 'border-bg-border/40'}`}
                         onClick={() => startEdit(ri, ci)}>
                         {isEditing ? (
                           <input autoFocus

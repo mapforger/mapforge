@@ -47,7 +47,14 @@ export interface Constant {
 
 export interface DiffEntry {
   address: string
-  original: string
-  modified: string
+  original_hex: string
+  modified_hex: string
   description: string
+  table_id: string
+  table_title: string
+  row: number
+  col: number
+  original_phys: number | null
+  new_phys: number | null
+  units: string
 }

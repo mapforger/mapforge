@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Grid } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { TableData } from '@/types'
 
@@ -133,6 +133,43 @@ function WireframeMesh({ table }: SurfaceMeshProps) {
   )
 }
 
+// Cage: bounding box wireframe + floor grid
+function Cage() {
+  const boxGeo = useMemo(() => {
+    const geo = new THREE.BoxGeometry(1, 0.6, 1)
+    return new THREE.EdgesGeometry(geo)
+  }, [])
+
+  const gridGeo = useMemo(() => {
+    const divisions = 10
+    const step = 1 / divisions
+    const lines: number[] = []
+    for (let i = 0; i <= divisions; i++) {
+      const t = i * step - 0.5
+      // lines parallel to Z
+      lines.push(t, 0, -0.5, t, 0, 0.5)
+      // lines parallel to X
+      lines.push(-0.5, 0, t, 0.5, 0, t)
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3))
+    return geo
+  }, [])
+
+  return (
+    <group>
+      {/* Bounding box */}
+      <lineSegments geometry={boxGeo} position={[0, 0.3, 0]}>
+        <lineBasicMaterial color="#334155" transparent opacity={0.5} />
+      </lineSegments>
+      {/* Floor grid */}
+      <lineSegments geometry={gridGeo}>
+        <lineBasicMaterial color="#1e293b" transparent opacity={0.7} />
+      </lineSegments>
+    </group>
+  )
+}
+
 interface Surface3DProps {
   table: TableData
 }
@@ -156,6 +193,7 @@ export function Surface3D({ table }: Surface3DProps) {
         <directionalLight position={[-2, 2, -2]} intensity={0.4} color="#7090ff" />
         <SurfaceMesh table={table} />
         <WireframeMesh table={table} />
+        <Cage />
         <OrbitControls
           makeDefault
           enableDamping
