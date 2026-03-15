@@ -78,24 +78,3 @@ export const createSessionFromCatalog = async (
   return data
 }
 
-export const contributeXdf = async (
-  xdfFile: File,
-  metadata: {
-    car_manufacturer: string
-    car_models: string
-    year_from: string
-    year_to: string
-    engine: string
-    power_hp: string
-    ecu: string
-    firmware_version: string
-    contributor: string
-    notes: string
-  }
-): Promise<{ pending_id: string; warnings: string[]; extracted: Record<string, unknown> }> => {
-  const form = new FormData()
-  form.append('xdf_file', xdfFile)
-  Object.entries(metadata).forEach(([k, v]) => form.append(k, v))
-  const { data } = await api.post('/catalog/contribute', form)
-  return data
-}

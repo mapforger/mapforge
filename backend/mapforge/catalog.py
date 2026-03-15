@@ -10,7 +10,6 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -21,11 +20,10 @@ from sqlalchemy.orm import DeclarativeBase, Session
 # Paths (relative to repo root, where uvicorn is launched)
 # ---------------------------------------------------------------------------
 
-CATALOG_DIR    = Path("catalog")
-XDF_DIR        = CATALOG_DIR / "xdf"
-INDEX_FILE     = CATALOG_DIR / "index.json"
-DB_PATH        = CATALOG_DIR / "catalog.db"
-PENDING_DIR    = Path("uploads") / "catalog_pending"
+CATALOG_DIR = Path("catalog")
+XDF_DIR     = CATALOG_DIR / "xdf"
+INDEX_FILE  = CATALOG_DIR / "index.json"
+DB_PATH     = CATALOG_DIR / "catalog.db"
 
 
 # ---------------------------------------------------------------------------
@@ -145,10 +143,6 @@ def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     h.update(path.read_bytes())
     return h.hexdigest()
-
-
-def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
 
 
 def get_xdf_path(filename: str) -> Path:

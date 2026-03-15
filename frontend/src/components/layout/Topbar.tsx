@@ -1,10 +1,9 @@
-import { Download, Trash2, Zap, ShieldCheck, ShieldAlert, Shield, X, Wrench, GitMerge } from 'lucide-react'
+import { Download, Trash2, Zap, ShieldCheck, ShieldAlert, Shield, X, Wrench } from 'lucide-react'
 import type { Session, ChecksumStatus, ChecksumBlockResult } from '@/types'
 import { exportBin } from '@/lib/api'
 import { useState } from 'react'
 import { useToast, apiError } from '@/components/ui/Toast'
 import { useT, useLang } from '@/i18n'
-import { ContributeModal } from '@/components/ui/ContributeModal'
 
 interface TopbarProps {
   session: Session
@@ -18,7 +17,6 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
   const [exporting, setExporting]       = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
-  const [contributeOpen, setContributeOpen] = useState(false)
   const { toast } = useToast()
   const { lang, setLang } = useLang()
   const t = useT()
@@ -119,13 +117,6 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
           />
         )}
 
-        <button onClick={() => setContributeOpen(true)}
-          className="btn-ghost flex items-center gap-1.5 text-sm py-1.5"
-          title={t.contributeTitle}>
-          <GitMerge size={14} />
-          <span className="hidden sm:inline">{t.contributeBtn}</span>
-        </button>
-
         <button onClick={handleExport} disabled={exporting}
           className="btn-primary flex items-center gap-2 text-sm py-1.5 disabled:opacity-60">
           {exporting
@@ -152,14 +143,6 @@ export function Topbar({ session, onClose, checksumStatus, onFixChecksums, isFix
           onFix={onFixChecksums}
           isFixing={!!isFixing}
           t={t}
-        />
-      )}
-
-      {/* Contribute modal */}
-      {contributeOpen && (
-        <ContributeModal
-          onClose={() => setContributeOpen(false)}
-          defaultXdfName={session.xdf_name}
         />
       )}
 

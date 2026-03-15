@@ -31,18 +31,13 @@ from mapforge.xdf_parser import parse_xdf, XDFParseError
 from mapforge.bin_reader import BinReadError, read_table, read_constant
 from mapforge.bin_writer import BinEditor, BinWriteError
 from mapforge.checksum import ChecksumBlock, verify_all, correct_all
-from mapforge.catalog import (
-    init_db, get_session as get_db_session, get_xdf_path,
-    XDFEntry, sha256_bytes, PENDING_DIR,
-)
-from mapforge.catalog_validator import validate_contribution
+from mapforge.catalog import init_db, get_session as get_db_session, get_xdf_path, XDFEntry
 
 app = FastAPI(title="MapForge API", version="0.2.0")
 
 
 @app.on_event("startup")
 def startup():
-    PENDING_DIR.mkdir(parents=True, exist_ok=True)
     init_db()
 
 app.add_middleware(
@@ -474,73 +469,6 @@ async def create_session_from_catalog(
         "constant_count":  len(xdf.constants),
     }
 
-
-@app.post("/api/catalog/contribute")
-async def catalog_contribute(
-    xdf_file:         UploadFile = File(...),
-    car_manufacturer: str = "",
-    car_models:       str = "",   # comma-separated
-    year_from:        str = "",
-    year_to:          str = "",
-    engine:           str = "",
-    power_hp:         str = "",
-    ecu:              str = "",
-    firmware_version: str = "",
-    contributor:      str = "anonymous",
-    notes:            str = "",
-) -> dict:
-    """
-    Submit a new XDF for catalog inclusion.
-    Validates the file and metadata, then saves to uploads/catalog_pending/.
-    Returns validation result + a pending ID.
-    """
-    xdf_data = await xdf_file.read()
-
-    models_list = [m.strip() for m in car_models.split(",") if m.strip()]
-    metadata = {
-        "car_manufacturer": car_manufacturer.strip(),
-        "car_models":       models_list,
-        "ecu":              ecu.strip(),
-        "firmware_version": firmware_version.strip(),
-    }
-
-    with get_db_session() as session:
-        result = validate_contribution(xdf_data, metadata, session)
-
-    if not result.ok:
-        raise HTTPException(status_code=422, detail={
-            "errors":   result.errors,
-            "warnings": result.warnings,
-        })
-
-    # Save pending file
-    import json as _json
-    pending_id = str(uuid.uuid4())
-    pending_dir = PENDING_DIR / pending_id
-    pending_dir.mkdir(parents=True)
-    (pending_dir / "file.xdf").write_bytes(xdf_data)
-    (pending_dir / "metadata.json").write_text(_json.dumps({
-        "car_manufacturer": car_manufacturer.strip(),
-        "car_models":       models_list,
-        "year_from":        int(year_from) if year_from.strip().isdigit() else None,
-        "year_to":          int(year_to)   if year_to.strip().isdigit()   else None,
-        "engine":           engine.strip(),
-        "power_hp":         int(power_hp) if power_hp.strip().isdigit() else None,
-        "ecu":              ecu.strip(),
-        "firmware_version": firmware_version.strip(),
-        "contributor":      contributor.strip() or "anonymous",
-        "notes":            notes.strip(),
-        "original_filename": xdf_file.filename,
-        **result.extracted,
-    }, indent=2))
-
-    return {
-        "status":   "pending",
-        "pending_id": pending_id,
-        "warnings": result.warnings,
-        "extracted": result.extracted,
-        "message":  "Your XDF has been submitted for review. Thank you for contributing!",
-    }
 
 
 @app.delete("/api/session/{file_id}")
