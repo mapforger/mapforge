@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #0A0A0F;
+    color: #F0F0F5;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #111118; }
+  ::-webkit-scrollbar-thumb { background: #2A2A38; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #FF6B35; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-hover text-white font-medium px-4 py-2 rounded
+           transition-colors duration-150 cursor-pointer;
+  }
+  .btn-ghost {
+    @apply text-text-secondary hover:text-text-primary hover:bg-bg-elevated
+           px-4 py-2 rounded transition-colors duration-150 cursor-pointer;
+  }
+  .panel {
+    @apply bg-bg-surface border border-bg-border rounded-lg;
+  }
+  .input {
+    @apply bg-bg-elevated border border-bg-border text-text-primary rounded px-3 py-2
+           focus:outline-none focus:border-accent transition-colors duration-150
+           placeholder:text-text-muted font-mono text-sm;
+  }
+}

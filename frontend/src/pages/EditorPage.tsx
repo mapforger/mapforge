@@ -1,0 +1,172 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Sidebar } from '@/components/layout/Sidebar'
+import { Topbar } from '@/components/layout/Topbar'
+import { TableEditor } from '@/components/ui/TableEditor'
+import { listTables, getTable, writeTable, getDiff, listConstants, deleteSession } from '@/lib/api'
+import type { Session } from '@/types'
+import { FileQuestion, SlidersHorizontal, GitCompare } from 'lucide-react'
+
+interface EditorPageProps {
+  session: Session
+  onClose: () => void
+}
+
+export function EditorPage({ session, onClose }: EditorPageProps) {
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState<'tables' | 'constants' | 'diff'>('tables')
+  const queryClient = useQueryClient()
+
+  const { data: tables = [] } = useQuery({
+    queryKey: ['tables', session.file_id],
+    queryFn: () => listTables(session.file_id),
+  })
+
+  const { data: tableData, isLoading: tableLoading } = useQuery({
+    queryKey: ['table', session.file_id, selectedTableId],
+    queryFn: () => getTable(session.file_id, selectedTableId!),
+    enabled: !!selectedTableId && activeView === 'tables',
+  })
+
+  const { data: constants = [] } = useQuery({
+    queryKey: ['constants', session.file_id],
+    queryFn: () => listConstants(session.file_id),
+    enabled: activeView === 'constants',
+  })
+
+  const { data: diff = [] } = useQuery({
+    queryKey: ['diff', session.file_id],
+    queryFn: () => getDiff(session.file_id),
+    enabled: activeView === 'diff',
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: (values: number[][]) =>
+      writeTable(session.file_id, selectedTableId!, values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['table', session.file_id, selectedTableId] })
+      queryClient.invalidateQueries({ queryKey: ['diff', session.file_id] })
+    },
+  })
+
+  const handleClose = async () => {
+    await deleteSession(session.file_id)
+    onClose()
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      <Topbar session={session} onClose={handleClose} />
+
+      <div className="flex flex-1 min-h-0">
+        <Sidebar
+          tables={tables}
+          selectedId={selectedTableId}
+          onSelect={id => { setSelectedTableId(id); setActiveView('tables') }}
+          activeView={activeView}
+          onViewChange={setActiveView}
+          modifiedCount={diff.length}
+        />
+
+        {/* Main content */}
+        <main className="flex-1 overflow-hidden p-6">
+          {activeView === 'tables' && (
+            <>
+              {!selectedTableId && (
+                <EmptyState
+                  icon={FileQuestion}
+                  title="Select a table"
+                  description="Choose a table from the sidebar to start editing"
+                />
+              )}
+              {selectedTableId && tableLoading && (
+                <div className="h-full flex items-center justify-center">
+                  <span className="text-text-muted text-sm animate-pulse">Loading table…</span>
+                </div>
+              )}
+              {selectedTableId && tableData && !tableLoading && (
+                <TableEditor
+                  table={tableData}
+                  onSave={values => saveMutation.mutate(values)}
+                  isSaving={saveMutation.isPending}
+                />
+              )}
+            </>
+          )}
+
+          {activeView === 'constants' && (
+            <ConstantsView constants={constants} />
+          )}
+
+          {activeView === 'diff' && (
+            <DiffView diff={diff} />
+          )}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ icon: Icon, title, description }: {
+  icon: React.FC<{ size?: number; className?: string }>
+  title: string
+  description: string
+}) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
+      <Icon size={40} className="text-text-muted opacity-40" />
+      <p className="text-text-secondary font-medium">{title}</p>
+      <p className="text-text-muted text-sm">{description}</p>
+    </div>
+  )
+}
+
+function ConstantsView({ constants }: { constants: any[] }) {
+  if (!constants.length) return (
+    <EmptyState icon={SlidersHorizontal} title="No constants" description="This XDF has no constants defined" />
+  )
+  return (
+    <div className="space-y-2 max-w-2xl">
+      <h2 className="text-text-primary font-semibold mb-4">Constants</h2>
+      {constants.map(c => (
+        <div key={c.id} className="panel px-4 py-3 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-text-primary text-sm font-medium">{c.title}</p>
+            {c.description && <p className="text-text-muted text-xs mt-0.5">{c.description}</p>}
+          </div>
+          {c.error ? (
+            <span className="text-error text-xs font-mono">{c.error}</span>
+          ) : (
+            <span className="text-accent font-mono text-sm">
+              {c.value} <span className="text-text-muted">{c.units}</span>
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DiffView({ diff }: { diff: any[] }) {
+  if (!diff.length) return (
+    <EmptyState icon={GitCompare} title="No changes" description="Modify table values to see the diff here" />
+  )
+  return (
+    <div className="space-y-2 max-w-2xl">
+      <h2 className="text-text-primary font-semibold mb-4">
+        {diff.length} modification{diff.length !== 1 ? 's' : ''}
+      </h2>
+      {diff.map((d, i) => (
+        <div key={i} className="panel px-4 py-3">
+          <p className="text-text-secondary text-xs mb-2">{d.description}</p>
+          <div className="flex items-center gap-3 font-mono text-xs">
+            <span className="text-text-muted">{d.address}</span>
+            <span className="text-error bg-error/10 px-2 py-0.5 rounded">{d.original}</span>
+            <span className="text-text-muted">→</span>
+            <span className="text-success bg-success/10 px-2 py-0.5 rounded">{d.modified}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
