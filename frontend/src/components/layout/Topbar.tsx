@@ -59,7 +59,7 @@ export function Topbar({ session, onClose }: TopbarProps) {
         <span className="font-semibold text-text-primary tracking-tight">MapForge</span>
       </div>
 
-      <div className="flex items-center gap-2 text-xs font-mono">
+      <div className="flex items-center gap-2 text-sm font-mono">
         <span className="text-text-secondary">{session.bin_name}</span>
         <span className="text-text-muted">·</span>
         <span className="text-text-muted">{sizeKB} KB</span>

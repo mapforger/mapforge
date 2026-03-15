@@ -173,8 +173,8 @@ export function TableEditor({ table, onSave, isSaving, highlightCell, modifiedCe
       {/* ── Header ── */}
       <div className="flex items-start justify-between flex-shrink-0">
         <div>
-          <h2 className="text-text-primary font-semibold text-base">{table.title}</h2>
-          {table.description && <p className="text-text-muted text-xs mt-0.5">{table.description}</p>}
+          <h2 className="text-text-primary font-semibold text-lg">{table.title}</h2>
+          {table.description && <p className="text-text-muted text-sm mt-0.5">{table.description}</p>}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-bg-elevated rounded border border-bg-border p-0.5">
@@ -195,7 +195,7 @@ export function TableEditor({ table, onSave, isSaving, highlightCell, modifiedCe
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
             <Redo2 size={14} />
           </button>
-          {isDirty && <span className="text-warning text-xs font-mono">unsaved</span>}
+          {isDirty && <span className="text-warning text-sm font-mono">unsaved</span>}
           <button onClick={save} disabled={!isDirty || isSaving} title="Save (Ctrl+S)"
             className="btn-primary flex items-center gap-1.5 text-sm py-1.5 px-3 disabled:opacity-40 disabled:cursor-not-allowed">
             <Save size={13} />
@@ -270,7 +270,7 @@ export function TableEditor({ table, onSave, isSaving, highlightCell, modifiedCe
       )}
 
       {/* ── Footer ── */}
-      <div className="flex items-center gap-4 text-[11px] font-mono text-text-muted border-t border-bg-border pt-2 flex-shrink-0">
+      <div className="flex items-center gap-4 text-xs font-mono text-text-muted border-t border-bg-border pt-2 flex-shrink-0">
         <span>Z: <span className="text-text-secondary">{table.z_units}</span></span>
         <span>min <span className="text-heat-cold">{min.toFixed(2)}</span></span>
         <span>max <span className="text-heat-hot">{max.toFixed(2)}</span></span>

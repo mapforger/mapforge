@@ -56,7 +56,7 @@ export function Sidebar({
             key={id}
             onClick={() => onViewChange(id)}
             title={label}
-            className={`flex-1 flex items-center justify-center py-3 text-xs transition-colors duration-150
+            className={`flex-1 flex items-center justify-center py-3 transition-colors duration-150
               ${activeView === id
                 ? 'text-accent border-b-2 border-accent'
                 : 'text-text-muted hover:text-text-secondary'}`}
@@ -77,7 +77,7 @@ export function Sidebar({
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
-              className="input w-full pl-8 py-1.5 text-xs"
+              className="input w-full pl-8 py-1.5 text-sm"
               placeholder="Search tables…"
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -97,7 +97,7 @@ export function Sidebar({
                   <button
                     onClick={() => toggleCategory(cat)}
                     className="w-full flex items-center justify-between px-4 py-1.5
-                               text-[11px] font-semibold text-text-muted uppercase tracking-wider
+                               text-xs font-semibold text-text-muted uppercase tracking-wider
                                hover:text-text-secondary transition-colors"
                   >
                     {cat}
@@ -118,13 +118,13 @@ export function Sidebar({
             ))
           )}
           {filtered.length === 0 && (
-            <p className="text-text-muted text-xs text-center py-8">No tables found</p>
+            <p className="text-text-muted text-sm text-center py-8">No tables found</p>
           )}
         </div>
       )}
 
       {/* Bottom info */}
-      <div className="p-3 border-t border-bg-border text-[11px] text-text-muted font-mono">
+      <div className="p-3 border-t border-bg-border text-xs text-text-muted font-mono">
         {tables.length} tables
       </div>
     </aside>
@@ -147,7 +147,7 @@ function TableItem({ table, selected, onSelect }: {
       <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0
         ${table.is_3d ? 'bg-accent' : 'bg-text-muted'}`}
       />
-      <span className="text-xs leading-snug">{table.title}</span>
+      <span className="text-sm leading-snug">{table.title}</span>
     </button>
   )
 }
